@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { StatusPagamento } from '../../../shared/enums/status-pagamento.enum';
 import { ClienteModelo } from '../../clients/models/cliente.model';
-import { TentativaTransacaoModelo } from '../../payment-attempts/models/tentativa-transacao';
+import { TentativaTransacaoModelo } from '../../payment-attempts/models/tentativa-transacao.model';
 
 @Entity('pagamentos')
 export class PagamentoModelo {
