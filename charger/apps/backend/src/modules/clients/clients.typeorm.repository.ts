@@ -1,0 +1,34 @@
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { IClientesRepository } from './clientes.repository';
+import { ClienteModelo } from './models/cliente.model';
+import { Cliente } from './entities/cliente.entity';
+import { ClienteMapper } from './mappers/cliente.mapper';
+
+export class ClientesTypeOrmRepository implements IClientesRepository {
+    constructor(
+        @InjectRepository(ClienteModelo)
+        private readonly repositorio: Repository<ClienteModelo>,
+    ) {}
+
+    async create(cliente: Partial<Cliente>): Promise<Cliente> {
+        const modelo = this.repositorio.create(ClienteMapper.toModel(cliente as Cliente));
+        const salvo  = await this.repositorio.save(modelo);
+        return ClienteMapper.toDomain(salvo);
+    }
+
+    async findAll(): Promise<Cliente[]> {
+        const modelos = await this.repositorio.find();
+        return modelos.map(ClienteMapper.toDomain);
+    }
+
+    async findById(id: string): Promise<Cliente | null> {
+        const modelo = await this.repositorio.findOne({ where: { id } });
+        return modelo ? ClienteMapper.toDomain(modelo) : null;
+    }
+
+    async findByEmail(email: string): Promise<Cliente | null> {
+        const modelo = await this.repositorio.findOne({ where: { email } });
+        return modelo ? ClienteMapper.toDomain(modelo) : null;
+    }
+}
