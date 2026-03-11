@@ -20,7 +20,7 @@ export class ClienteModelo {
     email: string;
 
     @Column({ type: 'varchar', nullable: true })
-    telefone: string;
+    telefone: string | null;
 
     @Column({ type: 'varchar', length: 14 })
     documento: string;

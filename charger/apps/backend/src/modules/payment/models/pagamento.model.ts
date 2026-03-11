@@ -24,7 +24,7 @@ export class PagamentoModelo {
     nome: string;
 
     @Column({ type: 'varchar', nullable: true })
-    descricao: string;
+    descricao: string | null;
 
     @Column({ type: 'decimal', precision: 10, scale: 2 })
     valor: number;

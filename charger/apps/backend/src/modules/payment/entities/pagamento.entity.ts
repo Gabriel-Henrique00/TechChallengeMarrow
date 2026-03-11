@@ -7,7 +7,7 @@ export class Pagamento {
     id: string;
     clienteId: string;
     nome: string;
-    descricao: string;
+    descricao: string | null;
     valor: number;
     valorPago: number;
     status: StatusPagamento;

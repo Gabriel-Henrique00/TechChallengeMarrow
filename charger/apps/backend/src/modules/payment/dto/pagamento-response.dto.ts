@@ -3,7 +3,7 @@ export class PagamentoRespostaDto {
     clienteId: string;
     nomeCliente: string;
     nome: string;
-    descricao: string;
+    descricao: string | null;
     valor: number;
     valorPago: number;
     status: string;
