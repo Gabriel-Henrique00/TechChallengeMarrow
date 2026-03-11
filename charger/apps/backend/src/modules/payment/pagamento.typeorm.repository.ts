@@ -1,10 +1,12 @@
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { IPagamentosRepository } from './pagamento.repository';
+import type { IPagamentosRepository } from './pagamento.repository';
 import { PagamentoModelo } from './models/pagamento.model';
 import { Pagamento } from './entities/pagamento.entity';
 import { PagamentoMapper } from './mapper/pagamento.mapper';
 
+@Injectable()
 export class PagamentosTypeOrmRepository implements IPagamentosRepository {
     constructor(
         @InjectRepository(PagamentoModelo)
