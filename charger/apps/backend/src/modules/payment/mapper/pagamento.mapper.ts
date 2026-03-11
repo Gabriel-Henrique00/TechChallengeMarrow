@@ -1,28 +1,30 @@
 import { Pagamento } from '../entities/pagamento.entity';
 import { PagamentoModelo } from '../models/pagamento.model';
+import { CriarPagamentoDto } from '../dto/create-pagamento.dto';
+import { PagamentoRespostaDto } from '../dto/pagamento-response.dto';
 import { TentativaTransacaoMapper } from '../../payment-attempts/mappers/tentativa-transacao.mapper';
 
 export class PagamentoMapper {
-    static paraDominio(modelo: PagamentoModelo): Pagamento {
+    static toDomain(modelo: PagamentoModelo): Pagamento {
         const pagamento = new Pagamento();
         pagamento.id             = modelo.id;
         pagamento.clienteId      = modelo.clienteId;
         pagamento.nome           = modelo.nome;
-        pagamento.descricao      = modelo.descricao;
+        pagamento.descricao      = modelo.descricao ?? null;
         pagamento.valor          = Number(modelo.valor);
         pagamento.valorPago      = Number(modelo.valorPago);
         pagamento.status         = modelo.status;
-        pagamento.idExterno      = modelo.idExterno;
+        pagamento.idExterno      = modelo.idExterno ?? null;
         pagamento.dataVencimento = modelo.dataVencimento;
         pagamento.criadoEm       = modelo.criadoEm;
         pagamento.atualizadoEm   = modelo.atualizadoEm;
         pagamento.tentativas     = modelo.tentativas
-            ? modelo.tentativas.map(TentativaTransacaoMapper.paraDominio)
+            ? modelo.tentativas.map(TentativaTransacaoMapper.toDomain)
             : [];
         return pagamento;
     }
 
-    static paraModelo(pagamento: Pagamento): Partial<PagamentoModelo> {
+    static toModel(pagamento: Pagamento): Partial<PagamentoModelo> {
         return {
             clienteId:      pagamento.clienteId,
             nome:           pagamento.nome,
@@ -32,6 +34,31 @@ export class PagamentoMapper {
             status:         pagamento.status,
             idExterno:      pagamento.idExterno,
             dataVencimento: pagamento.dataVencimento,
+        };
+    }
+
+    static fromCreateDto(dto: CriarPagamentoDto): Partial<Pagamento> {
+        const pagamento = new Pagamento();
+        pagamento.clienteId      = dto.clienteId;
+        pagamento.nome           = dto.nome;
+        pagamento.descricao      = dto.descricao ?? null;
+        pagamento.valor          = dto.valor;
+        pagamento.dataVencimento = new Date(dto.dataVencimento);
+        return pagamento;
+    }
+
+    static toResponseDto(pagamento: Pagamento, nomeCliente: string): PagamentoRespostaDto {
+        return {
+            id:             pagamento.id,
+            clienteId:      pagamento.clienteId,
+            nomeCliente,
+            nome:           pagamento.nome,
+            descricao:      pagamento.descricao,
+            valor:          pagamento.valor,
+            valorPago:      pagamento.valorPago,
+            status:         pagamento.status,
+            dataVencimento: pagamento.dataVencimento.toISOString(),
+            criadoEm:       pagamento.criadoEm.toISOString(),
         };
     }
 }
