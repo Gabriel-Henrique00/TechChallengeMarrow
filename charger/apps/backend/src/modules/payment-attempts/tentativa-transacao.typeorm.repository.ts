@@ -1,0 +1,32 @@
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ITentativasTransacaoRepository } from './tentativa-transacao.repository';
+import { TentativaTransacaoModelo } from './models/tentativa-transacao.model';
+import { TentativaTransacao } from './entities/tentativa-transacao.entity';
+import { TentativaTransacaoMapper } from './mappers/tentativa-transacao.mapper';
+
+export class TentativasTransacaoTypeOrmRepository implements ITentativasTransacaoRepository {
+    constructor(
+        @InjectRepository(TentativaTransacaoModelo)
+        private readonly repositorio: Repository<TentativaTransacaoModelo>,
+    ) {}
+
+    async create(tentativa: Partial<TentativaTransacao>): Promise<TentativaTransacao> {
+        const modelo = this.repositorio.create(TentativaTransacaoMapper.toModel(tentativa as TentativaTransacao));
+        const salvo  = await this.repositorio.save(modelo);
+        return TentativaTransacaoMapper.toDomain(salvo);
+    }
+
+    async findByPaymentId(pagamentoId: string): Promise<TentativaTransacao[]> {
+        const modelos = await this.repositorio.find({
+            where: { pagamentoId },
+            order: { criadoEm: 'DESC' },
+        });
+        return modelos.map(TentativaTransacaoMapper.toDomain);
+    }
+
+    async update(tentativa: TentativaTransacao): Promise<TentativaTransacao> {
+        await this.repositorio.save(TentativaTransacaoMapper.toModel(tentativa));
+        return tentativa;
+    }
+}
