@@ -1,4 +1,4 @@
-import { Cliente } from './entities/cliente.entity';
+import { Cliente } from '../entities/cliente.entity';
 
 export interface IClientesRepository {
     create(cliente: Partial<Cliente>): Promise<Cliente>;

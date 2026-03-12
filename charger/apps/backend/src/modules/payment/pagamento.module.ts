@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PagamentoController } from './pagamento.controller';
 import { PagamentosService } from './pagamento.service';
-import { PagamentosTypeOrmRepository } from './pagamento.typeorm.repository';
+import { PagamentosTypeOrmRepository } from './repositories/pagamento.typeorm.repository';
 import { PagamentoModelo } from './models/pagamento.model';
 import { ClientesModule } from '../clients/clientes.module';
 

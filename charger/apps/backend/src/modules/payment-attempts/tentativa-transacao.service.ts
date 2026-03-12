@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { ITentativasTransacaoRepository } from './tentativa-transacao.repository';
-import type { IPagamentosRepository } from '../payment/pagamento.repository';
+import type { ITentativasTransacaoRepository } from './repositories/tentativa-transacao.repository';
+import type { IPagamentosRepository } from '../payment/repositories/pagamento.repository';
 import type { IPaymentProvider } from '../../integrations/payment-provider/provedor-pagamento.interface';
 import { TentativaTransacaoMapper } from './mappers/tentativa-transacao.mapper';
 import { CriarTentativaDto } from './dto/create-tentativa.dto';

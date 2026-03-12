@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { IPagamentosRepository } from './pagamento.repository';
-import type { IClientesRepository } from '../clients/clientes.repository';
+import type { IPagamentosRepository } from './repositories/pagamento.repository';
+import type { IClientesRepository } from '../clients/repositories/clientes.repository';
 import { PagamentoMapper } from './mapper/pagamento.mapper';
 import { CriarPagamentoDto } from './dto/create-pagamento.dto';
 import { PagamentoRespostaDto } from './dto/pagamento-response.dto';

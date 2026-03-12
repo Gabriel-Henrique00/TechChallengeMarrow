@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { ITentativasTransacaoRepository } from './tentativa-transacao.repository';
-import { TentativaTransacaoModelo } from './models/tentativa-transacao.model';
-import { TentativaTransacao } from './entities/tentativa-transacao.entity';
-import { TentativaTransacaoMapper } from './mappers/tentativa-transacao.mapper';
+import { TentativaTransacaoModelo } from '../models/tentativa-transacao.model';
+import { TentativaTransacao } from '../entities/tentativa-transacao.entity';
+import { TentativaTransacaoMapper } from '../mappers/tentativa-transacao.mapper';
 
 @Injectable()
 export class TentativasTransacaoTypeOrmRepository implements ITentativasTransacaoRepository {

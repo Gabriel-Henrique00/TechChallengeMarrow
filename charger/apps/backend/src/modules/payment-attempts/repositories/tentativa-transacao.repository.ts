@@ -1,4 +1,4 @@
-import { TentativaTransacao } from './entities/tentativa-transacao.entity';
+import { TentativaTransacao } from '../entities/tentativa-transacao.entity';
 
 export interface ITentativasTransacaoRepository {
     create(tentativa: Partial<TentativaTransacao>): Promise<TentativaTransacao>;

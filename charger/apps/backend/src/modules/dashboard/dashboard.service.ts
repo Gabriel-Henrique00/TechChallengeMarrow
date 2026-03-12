@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { IPagamentosRepository } from '../payment/pagamento.repository';
+import type { IPagamentosRepository } from '../payment/repositories/pagamento.repository';
 import { StatusPagamento } from '../../shared/enums/status-pagamento.enum';
 
 @Injectable()

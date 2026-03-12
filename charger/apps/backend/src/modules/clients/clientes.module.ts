@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClientesController } from './clientes.controller';
 import { ClientesService } from './clientes.service';
-import { ClientesTypeOrmRepository } from './clients.typeorm.repository';
+import { ClientesTypeOrmRepository } from './repositories/clients.typeorm.repository';
 import { ClienteModelo } from './models/cliente.model';
 
 @Module({

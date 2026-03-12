@@ -1,5 +1,5 @@
 import { Injectable, Inject, ConflictException } from '@nestjs/common';
-import type { IClientesRepository } from './clientes.repository';
+import type { IClientesRepository } from './repositories/clientes.repository';
 import { ClienteMapper } from './mappers/cliente.mapper';
 import { CriarClienteDto } from './dto/create-cliente.dto';
 import { ClienteRespostaDto } from './dto/cliente-response.dto';

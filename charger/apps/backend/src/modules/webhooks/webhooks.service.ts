@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { IPagamentosRepository } from '../payment/pagamento.repository';
-import type { ITentativasTransacaoRepository } from '../payment-attempts/tentativa-transacao.repository';
+import type { IPagamentosRepository } from '../payment/repositories/pagamento.repository';
+import type { ITentativasTransacaoRepository } from '../payment-attempts/repositories/tentativa-transacao.repository';
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
 
 @Injectable()

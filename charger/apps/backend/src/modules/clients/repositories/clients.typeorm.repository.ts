@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { IClientesRepository } from './clientes.repository';
-import { ClienteModelo } from './models/cliente.model';
-import { Cliente } from './entities/cliente.entity';
-import { ClienteMapper } from './mappers/cliente.mapper';
+import { ClienteModelo } from '../models/cliente.model';
+import { Cliente } from '../entities/cliente.entity';
+import { ClienteMapper } from '../mappers/cliente.mapper';
 
 @Injectable()
 export class ClientesTypeOrmRepository implements IClientesRepository {
