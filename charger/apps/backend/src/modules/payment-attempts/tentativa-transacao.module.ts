@@ -20,10 +20,13 @@ import { FakePaymentAdapter } from '../../integrations/payment-provider/fake.pag
             useClass: TentativasTransacaoTypeOrmRepository,
         },
         {
-            // Forçando o uso fake do provedor de pagamento
             provide: 'IPaymentProvider',
             useClass: FakePaymentAdapter,
         },
+    ],
+    exports: [
+        'ITentativasTransacaoRepository',
+        'IPaymentProvider'
     ],
 })
 export class TentativasTransacaoModule {}
