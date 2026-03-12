@@ -9,6 +9,7 @@ export class PagamentoMapper {
         const pagamento = new Pagamento();
         pagamento.id             = modelo.id;
         pagamento.clienteId      = modelo.clienteId;
+        pagamento.nomeCliente    = modelo.cliente?.nome;
         pagamento.nome           = modelo.nome;
         pagamento.descricao      = modelo.descricao ?? null;
         pagamento.valor          = Number(modelo.valor);

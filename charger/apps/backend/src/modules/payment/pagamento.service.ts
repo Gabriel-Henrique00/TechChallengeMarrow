@@ -31,13 +31,13 @@ export class PagamentosService {
     async findAll(): Promise<PagamentoRespostaDto[]> {
         const pagamentos = await this.pagamentosRepository.findAll();
         return pagamentos.map((p) =>
-            PagamentoMapper.toResponseDto(p, p['cliente']?.nome ?? ''),
+            PagamentoMapper.toResponseDto(p, p.nomeCliente ?? ''),
         );
     }
 
     async findById(id: string): Promise<PagamentoRespostaDto> {
         const pagamento = await this.pagamentosRepository.findById(id);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', id);
-        return PagamentoMapper.toResponseDto(pagamento, pagamento['cliente']?.nome ?? '');
+        return PagamentoMapper.toResponseDto(pagamento, pagamento.nomeCliente ?? '');
     }
 }

@@ -6,6 +6,7 @@ import { PaymentAlreadyPaidException } from '../../../shared/exceptions/payment-
 export class Pagamento {
     id: string;
     clienteId: string;
+    nomeCliente?: string;
     nome: string;
     descricao: string | null;
     valor: number;
@@ -16,7 +17,6 @@ export class Pagamento {
     tentativas: TentativaTransacao[];
     criadoEm: Date;
     atualizadoEm: Date;
-
 
     podeReceberTentativa(): boolean {
         return this.status !== StatusPagamento.PAGO;
