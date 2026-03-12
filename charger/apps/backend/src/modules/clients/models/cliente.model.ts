@@ -16,13 +16,13 @@ export class ClienteModelo {
     @Column({ type: 'varchar' })
     nome: string;
 
-    @Column({ type: 'varchar' })
+    @Column({ type: 'varchar', unique: true })
     email: string;
 
     @Column({ type: 'varchar', nullable: true })
     telefone: string | null;
 
-    @Column({ type: 'varchar', length: 14 })
+    @Column({ type: 'varchar', length: 14, unique: true })
     documento: string;
 
     @CreateDateColumn({ name: 'criado_em' })

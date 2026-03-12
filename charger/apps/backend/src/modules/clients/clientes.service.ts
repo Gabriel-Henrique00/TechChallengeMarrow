@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, ConflictException } from '@nestjs/common';
 import type { IClientesRepository } from './clientes.repository';
 import { ClienteMapper } from './mappers/cliente.mapper';
 import { CriarClienteDto } from './dto/create-cliente.dto';
@@ -13,6 +13,16 @@ export class ClientesService {
     ) {}
 
     async create(dto: CriarClienteDto): Promise<ClienteRespostaDto> {
+        const emailExiste = await this.clientesRepository.findByEmail(dto.email);
+        if (emailExiste) {
+            throw new ConflictException(`O e-mail ${dto.email} já está em uso por outro cliente.`);
+        }
+
+        const documentoExiste = await this.clientesRepository.findByDocumento(dto.documento);
+        if (documentoExiste) {
+            throw new ConflictException(`O documento ${dto.documento} já está cadastrado.`);
+        }
+
         const cliente = ClienteMapper.fromCreateDto(dto);
         const salvo   = await this.clientesRepository.create(cliente);
         return ClienteMapper.toResponseDto(salvo);

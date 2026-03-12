@@ -33,4 +33,9 @@ export class ClientesTypeOrmRepository implements IClientesRepository {
         const modelo = await this.repositorio.findOne({ where: { email } });
         return modelo ? ClienteMapper.toDomain(modelo) : null;
     }
+
+    async findByDocumento(documento: string): Promise<Cliente | null> {
+        const modelo = await this.repositorio.findOne({ where: { documento } });
+        return modelo ? ClienteMapper.toDomain(modelo) : null;
+    }
 }

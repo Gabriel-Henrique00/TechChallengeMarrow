@@ -5,4 +5,5 @@ export interface IClientesRepository {
     findAll(): Promise<Cliente[]>;
     findById(id: string): Promise<Cliente | null>;
     findByEmail(email: string): Promise<Cliente | null>;
+    findByDocumento(documento: string): Promise<Cliente | null>;
 }
