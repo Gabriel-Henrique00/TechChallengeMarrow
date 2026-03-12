@@ -20,7 +20,6 @@ export class TentativaTransacaoModelo {
     @Column({
         type: 'enum',
         enum: StatusTentativa,
-        default: StatusTentativa.PROCESSANDO,
     })
     status: StatusTentativa;
 

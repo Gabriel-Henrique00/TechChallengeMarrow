@@ -27,8 +27,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
 CREATE TABLE IF NOT EXISTS tentativas_transacao (
                                                     id                  CHAR(36)      PRIMARY KEY,
     pagamento_id        CHAR(36)      NOT NULL,
-    status              ENUM('PROCESSANDO','SUCESSO','FALHA','NAO_AUTORIZADO')
-    DEFAULT 'PROCESSANDO',
+    status              ENUM('SUCESSO','FALHA','NAO_AUTORIZADO'),
     id_banco            VARCHAR(100),
     banco_nome          VARCHAR(150),
     referencia_externa  VARCHAR(100),
