@@ -1,21 +1,35 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule);
 
-  app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist:            true,
-        forbidNonWhitelisted: true,
-        transform:            true,
-      }),
-  );
+    app.useGlobalPipes(
+        new ValidationPipe({
+            whitelist:            true,
+            forbidNonWhitelisted: true,
+            transform:            true,
+        }),
+    );
 
-  app.enableCors();
+    app.enableCors();
 
-  await app.listen(3000);
-  console.log('Charger backend rodando em http://localhost:3000');
+    // Configuração do Swagger
+    const config = new DocumentBuilder()
+        .setTitle('Charger API')
+        .setDescription('API de gestão de pagamentos do sistema Charger')
+        .setVersion('1.0')
+        .addTag('clients', 'Operações de gerenciamento de clientes')
+        // Adicione futuras tags aqui (ex: payments, webhooks)
+        .build();
+
+    const documentFactory = () => SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, documentFactory);
+
+    await app.listen(3000);
+    console.log('Charger backend rodando em http://localhost:3000');
+    console.log('Documentação Swagger disponível em http://localhost:3000/api/docs');
 }
 bootstrap().then(r => {});
