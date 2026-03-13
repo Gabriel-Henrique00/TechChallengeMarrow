@@ -19,11 +19,13 @@ async function bootstrap() {
 
     app.enableCors();
 
-    // Configuração do Swagger
     const config = new DocumentBuilder()
         .setTitle('Charger API')
         .setDescription('API de gestão de pagamentos do sistema Charger')
         .setVersion('1.0')
+        .addBearerAuth()
+        .addTag('auth', 'Autenticação e Login')
+        .addTag('users', 'Gestão de Usuários')
         .addTag('clients', 'Operações de gerenciamento de clientes')
         .addTag('payments', 'Operações de pagamentos e tentativas')
         .build();
