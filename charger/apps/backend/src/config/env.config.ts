@@ -11,4 +11,8 @@ export default () => ({
     clientId:     process.env.PLUGGY_CLIENT_ID     || '',
     clientSecret: process.env.PLUGGY_CLIENT_SECRET || '',
   },
+  jwt: {
+    secret:    process.env.JWT_SECRET     || 'super-senha-charger-jwt-secret',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  },
 });
