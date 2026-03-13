@@ -1,32 +1,33 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TentativasTransacaoController } from './tentativa-transacao.controller';
 import { TentativasTransacaoService } from './tentativa-transacao.service';
 import { TentativasTransacaoTypeOrmRepository } from './repositories/tentativa-transacao.typeorm.repository';
 import { TentativaTransacaoModelo } from './models/tentativa-transacao.model';
 import { PagamentosModule } from '../payment/pagamento.module';
-import { FakePaymentAdapter } from '../../integrations/payment-provider/fake.pagamento.adapter';
+import { PluggyPaymentAdapter } from '../../integrations/payment-provider/pluggy.payment.adapter';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([TentativaTransacaoModelo]),
-        PagamentosModule,
+        forwardRef(() => PagamentosModule),
     ],
     controllers: [TentativasTransacaoController],
     providers: [
         TentativasTransacaoService,
         {
-            provide: 'ITentativasTransacaoRepository',
+            provide:  'ITentativasTransacaoRepository',
             useClass: TentativasTransacaoTypeOrmRepository,
         },
         {
-            provide: 'IPaymentProvider',
-            useClass: FakePaymentAdapter,
+            provide:  'IPaymentProvider',
+            useClass: PluggyPaymentAdapter,
         },
     ],
     exports: [
         'ITentativasTransacaoRepository',
-        'IPaymentProvider'
+        'IPaymentProvider',
+        TentativasTransacaoService,
     ],
 })
 export class TentativasTransacaoModule {}

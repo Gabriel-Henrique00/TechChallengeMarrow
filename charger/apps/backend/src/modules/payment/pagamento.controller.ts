@@ -4,13 +4,17 @@ import { PagamentosService } from './pagamento.service';
 import { CriarPagamentoDto } from './dto/create-pagamento.dto';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
+import { TentativasTransacaoService } from '../payment-attempts/tentativa-transacao.service';
 
 @ApiTags('payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
 export class PagamentoController {
-    constructor(private readonly pagamentosService: PagamentosService) {}
+    constructor(
+        private readonly pagamentosService:   PagamentosService,
+        private readonly tentativasService:   TentativasTransacaoService,
+    ) {}
 
     @Post()
     @ApiOperation({ summary: 'Criar uma nova cobrança para um cliente' })
@@ -30,6 +34,13 @@ export class PagamentoController {
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     buscarTodos(@UsuarioAtual() usuario: { id: string }) {
         return this.pagamentosService.findAll(usuario.id);
+    }
+
+    @Get('banks')
+    @ApiOperation({ summary: 'Listar bancos disponíveis para pagamento' })
+    @ApiResponse({ status: 200, description: 'Lista de bancos retornada com sucesso.' })
+    listarBancos() {
+        return this.tentativasService.getAvailableBanks();
     }
 
     @Get(':id')

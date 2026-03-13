@@ -1,10 +1,22 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IPagamentosRepository } from '../payment/repositories/pagamento.repository';
 import type { ITentativasTransacaoRepository } from '../payment-attempts/repositories/tentativa-transacao.repository';
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
 
+const PLUGGY_STATUS_MAP: Record<string, StatusTentativa> = {
+    COMPLETED:  StatusTentativa.SUCESSO,
+    SUCCESS:    StatusTentativa.SUCESSO,
+    FAILED:     StatusTentativa.FALHA,
+    ERROR:      StatusTentativa.FALHA,
+    CANCELLED:  StatusTentativa.NAO_AUTORIZADO,
+    REJECTED:   StatusTentativa.NAO_AUTORIZADO,
+    PROCESSING: StatusTentativa.PENDENTE,
+};
+
 @Injectable()
 export class WebhooksService {
+    private readonly logger = new Logger(WebhooksService.name);
+
     constructor(
         @Inject('IPagamentosRepository')
         private readonly pagamentosRepository: IPagamentosRepository,
@@ -12,33 +24,45 @@ export class WebhooksService {
         private readonly tentativasRepository: ITentativasTransacaoRepository,
     ) {}
 
-    async processar(payload: Record<string, any>, assinatura: string): Promise<void> {
-        //depois lembrar do pluggy
+    async processarPluggy(payload: Record<string, any>): Promise<void> {
+        const event = payload?.event as string;
 
-        const { referenciaExterna, status, pagamentoId } = payload;
+        if (event !== 'payment/status_updated') {
+            this.logger.log(`Evento Pluggy ignorado: ${event}`);
+            return;
+        }
 
-        const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(pagamentoId);
-        if (!pagamento) return;
+        const paymentIntentId: string = payload?.data?.paymentIntentId;
+        const pluggyStatus:    string = payload?.data?.status;
 
-        const tentativa = pagamento.tentativas.find(
-            (t) => t.referenciaExterna === referenciaExterna,
-        );
-        if (!tentativa) return;
+        if (!paymentIntentId || !pluggyStatus) {
+            this.logger.warn('Webhook Pluggy com payload incompleto.', payload);
+            return;
+        }
 
-        // atualiza status da tentativa com resposta do webhook
-        tentativa.status          = status;
+        const statusInterno = PLUGGY_STATUS_MAP[pluggyStatus] ?? StatusTentativa.FALHA;
+
+        const tentativa = await this.tentativasRepository.findByReferenciaExterna(paymentIntentId);
+        if (!tentativa) {
+            this.logger.warn(`Tentativa não encontrada para referenciaExterna: ${paymentIntentId}`);
+            return;
+        }
+
+        tentativa.status          = statusInterno;
         tentativa.respostaWebhook = payload;
         await this.tentativasRepository.update(tentativa);
 
-        // atualiza status do pagamento conforme resultado
-        if (status === StatusTentativa.SUCESSO) {
+        const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(tentativa.pagamentoId);
+        if (!pagamento) return;
+
+        if (statusInterno === StatusTentativa.SUCESSO) {
             pagamento.marcarComoPago(pagamento.valor);
-        }
-
-        if (status === StatusTentativa.NAO_AUTORIZADO) {
+            await this.pagamentosRepository.update(pagamento);
+        } else if (statusInterno === StatusTentativa.NAO_AUTORIZADO) {
             pagamento.marcarComoNaoAutorizado();
+            await this.pagamentosRepository.update(pagamento);
         }
 
-        await this.pagamentosRepository.update(pagamento);
+        this.logger.log(`Pagamento ${tentativa.pagamentoId} atualizado via webhook Pluggy: ${statusInterno}`);
     }
 }

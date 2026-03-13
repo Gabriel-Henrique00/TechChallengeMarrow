@@ -27,6 +27,11 @@ export class TentativasTransacaoTypeOrmRepository implements ITentativasTransaca
         return modelos.map(TentativaTransacaoMapper.toDomain);
     }
 
+    async findByReferenciaExterna(referenciaExterna: string): Promise<TentativaTransacao | null> {
+        const modelo = await this.repositorio.findOne({ where: { referenciaExterna } });
+        return modelo ? TentativaTransacaoMapper.toDomain(modelo) : null;
+    }
+
     async update(tentativa: TentativaTransacao): Promise<TentativaTransacao> {
         await this.repositorio.save(TentativaTransacaoMapper.toModel(tentativa));
         return tentativa;

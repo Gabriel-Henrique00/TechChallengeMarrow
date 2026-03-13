@@ -6,10 +6,13 @@ export default () => ({
     password: process.env.DB_PASS     || 'admin',
     name:     process.env.DB_NAME     || 'charger_db',
   },
-  paymentProvider: process.env.PAYMENT_PROVIDER || 'fake',
   pluggy: {
-    clientId:     process.env.PLUGGY_CLIENT_ID     || '',
-    clientSecret: process.env.PLUGGY_CLIENT_SECRET || '',
+    clientId:      process.env.PLUGGY_CLIENT_ID      || '',
+    clientSecret:  process.env.PLUGGY_CLIENT_SECRET  || '',
+    webhookSecret: process.env.PLUGGY_WEBHOOK_SECRET || '',
+  },
+  app: {
+    baseUrl: process.env.APP_BASE_URL || 'http://localhost:3001',
   },
   jwt: {
     secret:    process.env.JWT_SECRET     || 'super-senha-charger-jwt-secret',

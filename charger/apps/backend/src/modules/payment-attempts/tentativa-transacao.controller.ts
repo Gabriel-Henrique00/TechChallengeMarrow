@@ -12,6 +12,13 @@ import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 export class TentativasTransacaoController {
     constructor(private readonly tentativasService: TentativasTransacaoService) {}
 
+    @Get('banks')
+    @ApiOperation({ summary: 'Listar bancos disponíveis para pagamento via Pluggy' })
+    @ApiResponse({ status: 200, description: 'Lista de bancos retornada com sucesso.' })
+    listarBancos() {
+        return this.tentativasService.getAvailableBanks();
+    }
+
     @Post(':id/attempt')
     @ApiOperation({ summary: 'Registrar uma nova tentativa de transação para um pagamento' })
     @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })

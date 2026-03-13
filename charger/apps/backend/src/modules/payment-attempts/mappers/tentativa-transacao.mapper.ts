@@ -44,7 +44,7 @@ export class TentativaTransacaoMapper {
         return tentativa;
     }
 
-    static toResponseDto(tentativa: TentativaTransacao): TentativaRespostaDto {
+    static toResponseDto(tentativa: TentativaTransacao, paymentUrl: string | null = null): TentativaRespostaDto {
         return {
             id:                tentativa.id,
             pagamentoId:       tentativa.pagamentoId,
@@ -54,6 +54,7 @@ export class TentativaTransacaoMapper {
             referenciaExterna: tentativa.referenciaExterna,
             motivoFalha:       tentativa.motivoFalha,
             valorTentativa:    tentativa.valorTentativa,
+            paymentUrl,
             dataTentativa:     tentativa.dataTentativa.toISOString(),
             criadoEm:          tentativa.criadoEm.toISOString(),
         };

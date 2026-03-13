@@ -30,8 +30,9 @@ export class TentativasTransacaoService {
 
         const resultado = await this.paymentProvider.initiatePayment({
             pagamentoId,
-            valor:   pagamento.valor,
-            idBanco: dto.idBanco,
+            valor:     pagamento.valor,
+            idBanco:   dto.idBanco,
+            descricao: pagamento.descricao ?? pagamento.nome,
         });
 
         const dadosTentativa             = TentativaTransacaoMapper.fromCreateDto(dto, pagamentoId, pagamento.valor);
@@ -43,15 +44,17 @@ export class TentativasTransacaoService {
 
         pagamento.adicionarTentativa(tentativa);
 
+
         if (resultado.status === StatusTentativa.SUCESSO) {
             pagamento.marcarComoPago(pagamento.valor);
+            await this.pagamentosRepository.update(pagamento);
         } else if (resultado.status === StatusTentativa.NAO_AUTORIZADO) {
             pagamento.marcarComoNaoAutorizado();
+            await this.pagamentosRepository.update(pagamento);
         }
+        // PENDENTE e FALHA não alteram o status do pagamento aqui; aguardam webhook.
 
-        await this.pagamentosRepository.update(pagamento);
-
-        return TentativaTransacaoMapper.toResponseDto(tentativa);
+        return TentativaTransacaoMapper.toResponseDto(tentativa, resultado.paymentUrl);
     }
 
     async findByPaymentId(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto[]> {
@@ -59,6 +62,10 @@ export class TentativasTransacaoService {
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
 
         const tentativas = await this.tentativasRepository.findByPaymentId(pagamentoId);
-        return tentativas.map(TentativaTransacaoMapper.toResponseDto);
+        return tentativas.map((t) => TentativaTransacaoMapper.toResponseDto(t));
+    }
+
+    async getAvailableBanks() {
+        return this.paymentProvider.getAvailableBanks();
     }
 }
