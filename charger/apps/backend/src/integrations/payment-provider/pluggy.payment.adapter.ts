@@ -80,7 +80,7 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
             const apiKey = await this.getApiKey();
 
             const response = await fetch(
-                `${this.baseUrl}/connectors?capabilities=PAYMENT_INITIATION&sandbox=false`,
+                `${this.baseUrl}/connectors?supportsPaymentInitiation=true`,
                 {
                     headers: {
                         'X-API-KEY':    apiKey,
