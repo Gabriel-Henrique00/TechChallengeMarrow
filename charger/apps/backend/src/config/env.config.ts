@@ -10,6 +10,7 @@ export default () => ({
     clientId:      process.env.PLUGGY_CLIENT_ID      || '',
     clientSecret:  process.env.PLUGGY_CLIENT_SECRET  || '',
     webhookSecret: process.env.PLUGGY_WEBHOOK_SECRET || '',
+    recipientId:   process.env.PLUGGY_RECIPIENT_ID   || '',
   },
   app: {
     baseUrl: process.env.APP_BASE_URL || 'http://localhost:3001',

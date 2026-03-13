@@ -28,10 +28,10 @@ export class TentativasTransacaoService {
             throw new PaymentAlreadyPaidException(pagamentoId);
         }
 
+        // Cria o Payment Request no Pluggy e obtém o paymentUrl
         const resultado = await this.paymentProvider.initiatePayment({
             pagamentoId,
-            valor:     pagamento.valor,
-            idBanco:   dto.idBanco,
+            valor:    pagamento.valor,
             descricao: pagamento.descricao ?? pagamento.nome,
         });
 
@@ -44,15 +44,11 @@ export class TentativasTransacaoService {
 
         pagamento.adicionarTentativa(tentativa);
 
-
-        if (resultado.status === StatusTentativa.SUCESSO) {
-            pagamento.marcarComoPago(pagamento.valor);
-            await this.pagamentosRepository.update(pagamento);
-        } else if (resultado.status === StatusTentativa.NAO_AUTORIZADO) {
-            pagamento.marcarComoNaoAutorizado();
+        // Só atualiza status do pagamento em resposta síncrona (FALHA)
+        // SUCESSO e NAO_AUTORIZADO chegam via webhook do Pluggy
+        if (resultado.status === StatusTentativa.FALHA) {
             await this.pagamentosRepository.update(pagamento);
         }
-        // PENDENTE e FALHA não alteram o status do pagamento aqui; aguardam webhook.
 
         return TentativaTransacaoMapper.toResponseDto(tentativa, resultado.paymentUrl);
     }

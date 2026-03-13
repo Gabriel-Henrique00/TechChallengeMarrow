@@ -1,17 +1,16 @@
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
 
 export interface IniciarPagamentoInput {
-    pagamentoId:  string;
-    valor:        number;
-    idBanco:      string;
-    descricao?:   string;
+    pagamentoId: string;
+    valor:       number;
+    descricao?:  string;
 }
 
 export interface IniciarPagamentoOutput {
     status:            StatusTentativa;
-    referenciaExterna: string | null;
+    referenciaExterna: string | null; // paymentRequestId do Pluggy
     motivoFalha:       string | null;
-    paymentUrl:        string | null;
+    paymentUrl:        string | null; // https://pay.pluggy.ai/{id}
 }
 
 export interface BancoDisponivel {

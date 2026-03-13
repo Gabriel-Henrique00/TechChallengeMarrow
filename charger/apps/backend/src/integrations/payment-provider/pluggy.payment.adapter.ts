@@ -8,9 +8,9 @@ import type {
 } from './provedor-pagamento.interface';
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
 
-interface PluggyApiKey {
+interface PluggyApiKeyCache {
     apiKey:    string;
-    expiresAt: number; // timestamp ms
+    expiresAt: number;
 }
 
 interface PluggyConnector {
@@ -18,14 +18,10 @@ interface PluggyConnector {
     name: string;
 }
 
-interface PluggyPaymentIntentResponse {
-    id:          string;
-    status:      string;
-    callbackUrl: string | null;
-}
-
-interface PluggyConnectTokenResponse {
-    accessToken: string;
+interface PluggyPaymentRequestResponse {
+    id:         string;
+    status:     string;
+    paymentUrl: string;
 }
 
 @Injectable()
@@ -34,38 +30,65 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
     private readonly baseUrl   = 'https://api.pluggy.ai';
     private readonly clientId:     string;
     private readonly clientSecret: string;
+    private readonly recipientId:  string;
     private readonly appBaseUrl:   string;
 
-    private cachedApiKey: PluggyApiKey | null = null;
+    private cachedApiKey: PluggyApiKeyCache | null = null;
 
     constructor(private readonly configService: ConfigService) {
-        this.clientId     = this.configService.get<string>('pluggy.clientId')     ?? '';
-        this.clientSecret = this.configService.get<string>('pluggy.clientSecret') ?? '';
-        this.appBaseUrl   = this.configService.get<string>('app.baseUrl')         ?? 'http://localhost:3001';
+        this.clientId    = this.configService.get<string>('pluggy.clientId')    ?? '';
+        this.clientSecret= this.configService.get<string>('pluggy.clientSecret') ?? '';
+        this.recipientId = this.configService.get<string>('pluggy.recipientId') ?? '';
+        this.appBaseUrl  = this.configService.get<string>('app.baseUrl')        ?? 'http://localhost:3001';
     }
 
     // ─── IPaymentProvider ────────────────────────────────────────────────────
 
     async initiatePayment(input: IniciarPagamentoInput): Promise<IniciarPagamentoOutput> {
         try {
+            if (!this.recipientId) {
+                throw new Error('PLUGGY_RECIPIENT_ID não configurado no .env');
+            }
+
             const apiKey = await this.getApiKey();
 
-            // 1. Cria o Payment Intent no Pluggy
-            const paymentIntent = await this.criarPaymentIntent(apiKey, input);
+            const body = {
+                amount:      input.valor,
+                description: input.descricao ?? `Pagamento #${input.pagamentoId}`,
+                recipientId: this.recipientId,
+                callbackUrls: {
+                    success: `${this.appBaseUrl}/payment/${input.pagamentoId}/success`,
+                    error:   `${this.appBaseUrl}/payment/${input.pagamentoId}/error`,
+                    pending: `${this.appBaseUrl}/payment/${input.pagamentoId}/pending`,
+                },
+            };
 
-            // 2. Cria o Connect Token para o widget do cliente
-            const connectToken = await this.criarConnectToken(apiKey, paymentIntent.id, input);
+            const response = await fetch(`${this.baseUrl}/payments/requests`, {
+                method:  'POST',
+                headers: {
+                    'X-API-KEY':    apiKey,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
 
-            const paymentUrl = this.buildWidgetUrl(connectToken);
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(`Pluggy /payments/requests falhou [${response.status}]: ${err}`);
+            }
+
+            const data: PluggyPaymentRequestResponse = await response.json();
+
+            this.logger.log(`Payment Request criado: ${data.id} → ${data.paymentUrl}`);
 
             return {
                 status:            StatusTentativa.PENDENTE,
-                referenciaExterna: paymentIntent.id,
+                referenciaExterna: data.id,         // paymentRequestId do Pluggy
                 motivoFalha:       null,
-                paymentUrl,
+                paymentUrl:        data.paymentUrl, // https://pay.pluggy.ai/{id}
             };
         } catch (error: any) {
-            this.logger.error('Erro ao iniciar pagamento no Pluggy', error?.message);
+            this.logger.error('Erro ao criar Payment Request no Pluggy', error?.message);
             return {
                 status:            StatusTentativa.FALHA,
                 referenciaExterna: null,
@@ -105,85 +128,10 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
         }
     }
 
-    // ─── Internos ────────────────────────────────────────────────────────────
-
-    private async criarPaymentIntent(
-        apiKey:  string,
-        input:   IniciarPagamentoInput,
-    ): Promise<PluggyPaymentIntentResponse> {
-        const body = {
-            type:        'PIX',
-            amount:      input.valor,
-            description: input.descricao ?? `Pagamento #${input.pagamentoId}`,
-            callbackUrls: {
-                success: `${this.appBaseUrl}/payment/${input.pagamentoId}/success`,
-                error:   `${this.appBaseUrl}/payment/${input.pagamentoId}/error`,
-            },
-        };
-
-        const response = await fetch(`${this.baseUrl}/payments`, {
-            method:  'POST',
-            headers: {
-                'X-API-KEY':    apiKey,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-            const err = await response.text();
-            throw new Error(`Pluggy /payments falhou [${response.status}]: ${err}`);
-        }
-
-        return response.json();
-    }
-
-    private async criarConnectToken(
-        apiKey:         string,
-        paymentIntentId: string,
-        input:          IniciarPagamentoInput,
-    ): Promise<string> {
-        const body = {
-            clientUserId: input.pagamentoId,
-            options: {
-                connectorIds: [Number(input.idBanco)],
-                products:     ['PAYMENT_INITIATION'],
-                paymentData: {
-                    paymentIntentId,
-                },
-            },
-        };
-
-        const response = await fetch(`${this.baseUrl}/connect_token`, {
-            method:  'POST',
-            headers: {
-                'X-API-KEY':    apiKey,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-            const err = await response.text();
-            throw new Error(`Pluggy /connect_token falhou [${response.status}]: ${err}`);
-        }
-
-        const data: PluggyConnectTokenResponse = await response.json();
-        return data.accessToken;
-    }
-
-    private buildWidgetUrl(connectToken: string): string {
-        return `https://connect.pluggy.ai?token=${connectToken}`;
-    }
-
     // ─── Autenticação com cache ───────────────────────────────────────────────
 
-    /**
-     * Retorna um apiKey válido. O token do Pluggy expira em 2h,
-     * então fazemos cache com margem de 5 minutos.
-     */
     private async getApiKey(): Promise<string> {
-        const margem = 5 * 60 * 1000; // 5 min em ms
+        const margem = 5 * 60 * 1000; // 5 min de margem
 
         if (this.cachedApiKey && this.cachedApiKey.expiresAt > Date.now() + margem) {
             return this.cachedApiKey.apiKey;
@@ -205,7 +153,7 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
 
         const data: { apiKey: string } = await response.json();
 
-        // apiKey do Pluggy expira em 2h (7200s)
+        // apiKey expira em 2h
         this.cachedApiKey = {
             apiKey:    data.apiKey,
             expiresAt: Date.now() + 2 * 60 * 60 * 1000,
