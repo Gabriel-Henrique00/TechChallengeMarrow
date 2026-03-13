@@ -34,9 +34,9 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
     }
 
-    async findByIdWithAttempts(id: string): Promise<Pagamento | null> {
+    async findByIdWithAttempts(id: string, usuarioId: string): Promise<Pagamento | null> {
         const modelo = await this.repositorio.findOne({
-            where: { id },
+            where:     { id, usuarioId },
             relations: ['cliente', 'tentativas'],
         });
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
@@ -45,5 +45,13 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
     async update(pagamento: Pagamento): Promise<Pagamento> {
         await this.repositorio.save(PagamentoMapper.toModel(pagamento));
         return pagamento;
+    }
+
+    async findByIdWithAttemptsInternal(id: string): Promise<Pagamento | null> {
+        const modelo = await this.repositorio.findOne({
+            where:     { id },
+            relations: ['cliente', 'tentativas'],
+        });
+        return modelo ? PagamentoMapper.toDomain(modelo) : null;
     }
 }

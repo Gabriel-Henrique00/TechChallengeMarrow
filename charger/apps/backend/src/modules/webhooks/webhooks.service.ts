@@ -17,7 +17,7 @@ export class WebhooksService {
 
         const { referenciaExterna, status, pagamentoId } = payload;
 
-        const pagamento = await this.pagamentosRepository.findByIdWithAttempts(pagamentoId);
+        const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(pagamentoId);
         if (!pagamento) return;
 
         const tentativa = pagamento.tentativas.find(

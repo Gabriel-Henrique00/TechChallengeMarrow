@@ -5,5 +5,6 @@ export interface IPagamentosRepository {
     findAll(usuarioId: string): Promise<Pagamento[]>;
     findById(id: string, usuarioId: string): Promise<Pagamento | null>;
     findByIdWithAttempts(id: string, usuarioId: string): Promise<Pagamento | null>;
+    findByIdWithAttemptsInternal(id: string): Promise<Pagamento | null>;
     update(pagamento: Pagamento): Promise<Pagamento>;
 }
