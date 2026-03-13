@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Param, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { ClientesService } from './clientes.service';
 import { CriarClienteDto } from './dto/create-cliente.dto';
+import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 
 @ApiTags('clients')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('clients')
 export class ClientesController {
     constructor(private readonly clientesService: ClientesService) {}
@@ -11,24 +15,32 @@ export class ClientesController {
     @Post()
     @ApiOperation({ summary: 'Criar um novo cliente' })
     @ApiResponse({ status: 201, description: 'Cliente criado com sucesso.' })
-    @ApiResponse({ status: 400, description: 'Dados de validação inválidos fornecidos no payload.' })
-    criar(@Body() dto: CriarClienteDto) {
-        return this.clientesService.create(dto);
+    @ApiResponse({ status: 401, description: 'Não autorizado.' })
+    criar(
+        @Body() dto: CriarClienteDto,
+        @UsuarioAtual() usuario: { id: string },
+    ) {
+        return this.clientesService.create(dto, usuario.id);
     }
 
     @Get()
-    @ApiOperation({ summary: 'Listar todos os clientes cadastrados' })
+    @ApiOperation({ summary: 'Listar todos os clientes do usuário autenticado' })
     @ApiResponse({ status: 200, description: 'Lista de clientes retornada com sucesso.' })
-    buscarTodos() {
-        return this.clientesService.findAll();
+    @ApiResponse({ status: 401, description: 'Não autorizado.' })
+    buscarTodos(@UsuarioAtual() usuario: { id: string }) {
+        return this.clientesService.findAll(usuario.id);
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Buscar um cliente específico pelo ID' })
-    @ApiParam({ name: 'id', description: 'Identificador único do cliente (UUID)', type: String })
+    @ApiParam({ name: 'id', description: 'UUID do cliente', type: String })
     @ApiResponse({ status: 200, description: 'Dados do cliente retornados com sucesso.' })
-    @ApiResponse({ status: 404, description: 'Cliente não encontrado com o ID fornecido.' })
-    buscarPorId(@Param('id') id: string) {
-        return this.clientesService.findById(id);
+    @ApiResponse({ status: 401, description: 'Não autorizado.' })
+    @ApiResponse({ status: 404, description: 'Cliente não encontrado.' })
+    buscarPorId(
+        @Param('id') id: string,
+        @UsuarioAtual() usuario: { id: string },
+    ) {
+        return this.clientesService.findById(id, usuario.id);
     }
 }

@@ -12,7 +12,7 @@ export class ClientesService {
         private readonly clientesRepository: IClientesRepository,
     ) {}
 
-    async create(dto: CriarClienteDto): Promise<ClienteRespostaDto> {
+    async create(dto: CriarClienteDto, usuarioId: string): Promise<ClienteRespostaDto> {
         const emailExiste = await this.clientesRepository.findByEmail(dto.email);
         if (emailExiste) {
             throw new ConflictException(`O e-mail ${dto.email} já está em uso por outro cliente.`);
@@ -23,18 +23,18 @@ export class ClientesService {
             throw new ConflictException(`O documento ${dto.documento} já está cadastrado.`);
         }
 
-        const cliente = ClienteMapper.fromCreateDto(dto);
+        const cliente = ClienteMapper.fromCreateDto(dto, usuarioId);
         const salvo   = await this.clientesRepository.create(cliente);
         return ClienteMapper.toResponseDto(salvo);
     }
 
-    async findAll(): Promise<ClienteRespostaDto[]> {
-        const clientes = await this.clientesRepository.findAll();
+    async findAll(usuarioId: string): Promise<ClienteRespostaDto[]> {
+        const clientes = await this.clientesRepository.findAll(usuarioId);
         return clientes.map(ClienteMapper.toResponseDto);
     }
 
-    async findById(id: string): Promise<ClienteRespostaDto> {
-        const cliente = await this.clientesRepository.findById(id);
+    async findById(id: string, usuarioId: string): Promise<ClienteRespostaDto> {
+        const cliente = await this.clientesRepository.findById(id, usuarioId);
         if (!cliente) throw new ResourceNotFoundException('Cliente', id);
         return ClienteMapper.toResponseDto(cliente);
     }

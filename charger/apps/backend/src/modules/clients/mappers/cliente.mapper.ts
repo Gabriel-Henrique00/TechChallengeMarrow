@@ -5,8 +5,9 @@ import { ClienteRespostaDto } from '../dto/cliente-response.dto';
 
 export class ClienteMapper {
     static toDomain(modelo: ClienteModelo): Cliente {
-        const cliente = new Cliente();
+        const cliente        = new Cliente();
         cliente.id           = modelo.id;
+        cliente.usuarioId    = modelo.usuarioId;
         cliente.nome         = modelo.nome;
         cliente.email        = modelo.email;
         cliente.telefone     = modelo.telefone ?? null;
@@ -19,6 +20,7 @@ export class ClienteMapper {
     static toModel(cliente: Cliente): Partial<ClienteModelo> {
         return {
             id:        cliente.id,
+            usuarioId: cliente.usuarioId,
             nome:      cliente.nome,
             email:     cliente.email,
             telefone:  cliente.telefone,
@@ -26,8 +28,9 @@ export class ClienteMapper {
         };
     }
 
-    static fromCreateDto(dto: CriarClienteDto): Partial<Cliente> {
-        const cliente = new Cliente();
+    static fromCreateDto(dto: CriarClienteDto, usuarioId: string): Partial<Cliente> {
+        const cliente     = new Cliente();
+        cliente.usuarioId = usuarioId;
         cliente.nome      = dto.nome;
         cliente.email     = dto.email;
         cliente.telefone  = dto.telefone ?? null;

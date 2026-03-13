@@ -5,6 +5,7 @@ import { PaymentAlreadyPaidException } from '../../../shared/exceptions/payment-
 
 export class Pagamento {
     id: string;
+    usuarioId: string;
     clienteId: string;
     nomeCliente?: string;
     nome: string;
@@ -30,7 +31,7 @@ export class Pagamento {
     }
 
     marcarComoPago(valorPago: number): void {
-        this.status = StatusPagamento.PAGO;
+        this.status   = StatusPagamento.PAGO;
         this.valorPago = valorPago;
     }
 

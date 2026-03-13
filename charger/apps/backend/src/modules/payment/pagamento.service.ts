@@ -16,11 +16,11 @@ export class PagamentosService {
         private readonly clientesRepository: IClientesRepository,
     ) {}
 
-    async create(dto: CriarPagamentoDto): Promise<PagamentoRespostaDto> {
-        const cliente = await this.clientesRepository.findById(dto.clienteId);
+    async create(dto: CriarPagamentoDto, usuarioId: string): Promise<PagamentoRespostaDto> {
+        const cliente = await this.clientesRepository.findById(dto.clienteId, usuarioId);
         if (!cliente) throw new ResourceNotFoundException('Cliente', dto.clienteId);
 
-        const dados     = PagamentoMapper.fromCreateDto(dto);
+        const dados     = PagamentoMapper.fromCreateDto(dto, usuarioId);
         dados.status    = StatusPagamento.AGUARDANDO_PAGAMENTO;
         dados.valorPago = 0;
 
@@ -28,15 +28,15 @@ export class PagamentosService {
         return PagamentoMapper.toResponseDto(salvo, cliente.nome);
     }
 
-    async findAll(): Promise<PagamentoRespostaDto[]> {
-        const pagamentos = await this.pagamentosRepository.findAll();
+    async findAll(usuarioId: string): Promise<PagamentoRespostaDto[]> {
+        const pagamentos = await this.pagamentosRepository.findAll(usuarioId);
         return pagamentos.map((p) =>
             PagamentoMapper.toResponseDto(p, p.nomeCliente ?? ''),
         );
     }
 
-    async findById(id: string): Promise<PagamentoRespostaDto> {
-        const pagamento = await this.pagamentosRepository.findById(id);
+    async findById(id: string, usuarioId: string): Promise<PagamentoRespostaDto> {
+        const pagamento = await this.pagamentosRepository.findById(id, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', id);
         return PagamentoMapper.toResponseDto(pagamento, pagamento.nomeCliente ?? '');
     }

@@ -19,13 +19,13 @@ export class ClientesTypeOrmRepository implements IClientesRepository {
         return ClienteMapper.toDomain(salvo);
     }
 
-    async findAll(): Promise<Cliente[]> {
-        const modelos = await this.repositorio.find();
+    async findAll(usuarioId: string): Promise<Cliente[]> {
+        const modelos = await this.repositorio.find({ where: { usuarioId } });
         return modelos.map(ClienteMapper.toDomain);
     }
 
-    async findById(id: string): Promise<Cliente | null> {
-        const modelo = await this.repositorio.findOne({ where: { id } });
+    async findById(id: string, usuarioId: string): Promise<Cliente | null> {
+        const modelo = await this.repositorio.findOne({ where: { id, usuarioId } });
         return modelo ? ClienteMapper.toDomain(modelo) : null;
     }
 

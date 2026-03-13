@@ -20,10 +20,9 @@ export class TentativasTransacaoService {
         private readonly paymentProvider: IPaymentProvider,
     ) {}
 
-    async create(pagamentoId: string, dto: CriarTentativaDto): Promise<TentativaRespostaDto> {
-        const pagamento = await this.pagamentosRepository.findByIdWithAttempts(pagamentoId);
+    async create(pagamentoId: string, dto: CriarTentativaDto, usuarioId: string): Promise<TentativaRespostaDto> {
+        const pagamento = await this.pagamentosRepository.findByIdWithAttempts(pagamentoId, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
-
 
         if (!pagamento.podeReceberTentativa()) {
             throw new PaymentAlreadyPaidException(pagamentoId);
@@ -35,13 +34,12 @@ export class TentativasTransacaoService {
             idBanco: dto.idBanco,
         });
 
-        const dadosTentativa = TentativaTransacaoMapper.fromCreateDto(dto, pagamentoId, pagamento.valor);
+        const dadosTentativa             = TentativaTransacaoMapper.fromCreateDto(dto, pagamentoId, pagamento.valor);
         dadosTentativa.status            = resultado.status;
         dadosTentativa.referenciaExterna = resultado.referenciaExterna ?? null;
         dadosTentativa.motivoFalha       = resultado.motivoFalha ?? null;
 
         const tentativa = await this.tentativasRepository.create(dadosTentativa);
-
 
         pagamento.adicionarTentativa(tentativa);
 
@@ -56,8 +54,8 @@ export class TentativasTransacaoService {
         return TentativaTransacaoMapper.toResponseDto(tentativa);
     }
 
-    async findByPaymentId(pagamentoId: string): Promise<TentativaRespostaDto[]> {
-        const pagamento = await this.pagamentosRepository.findById(pagamentoId);
+    async findByPaymentId(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto[]> {
+        const pagamento = await this.pagamentosRepository.findById(pagamentoId, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
 
         const tentativas = await this.tentativasRepository.findByPaymentId(pagamentoId);

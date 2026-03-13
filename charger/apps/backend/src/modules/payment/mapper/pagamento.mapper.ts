@@ -6,8 +6,9 @@ import { TentativaTransacaoMapper } from '../../payment-attempts/mappers/tentati
 
 export class PagamentoMapper {
     static toDomain(modelo: PagamentoModelo): Pagamento {
-        const pagamento = new Pagamento();
+        const pagamento          = new Pagamento();
         pagamento.id             = modelo.id;
+        pagamento.usuarioId      = modelo.usuarioId;
         pagamento.clienteId      = modelo.clienteId;
         pagamento.nomeCliente    = modelo.cliente?.nome;
         pagamento.nome           = modelo.nome;
@@ -27,6 +28,8 @@ export class PagamentoMapper {
 
     static toModel(pagamento: Pagamento): Partial<PagamentoModelo> {
         return {
+            id:             pagamento.id,
+            usuarioId:      pagamento.usuarioId,
             clienteId:      pagamento.clienteId,
             nome:           pagamento.nome,
             descricao:      pagamento.descricao,
@@ -38,8 +41,9 @@ export class PagamentoMapper {
         };
     }
 
-    static fromCreateDto(dto: CriarPagamentoDto): Partial<Pagamento> {
-        const pagamento = new Pagamento();
+    static fromCreateDto(dto: CriarPagamentoDto, usuarioId: string): Partial<Pagamento> {
+        const pagamento          = new Pagamento();
+        pagamento.usuarioId      = usuarioId;
         pagamento.clienteId      = dto.clienteId;
         pagamento.nome           = dto.nome;
         pagamento.descricao      = dto.descricao ?? null;

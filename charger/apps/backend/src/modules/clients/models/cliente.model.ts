@@ -5,13 +5,19 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     OneToMany,
+    ManyToOne,
+    JoinColumn,
 } from 'typeorm';
 import { PagamentoModelo } from '../../payment/models/pagamento.model';
+import { UsuarioModelo } from '../../users/models/usuario.model';
 
 @Entity('clientes')
 export class ClienteModelo {
     @PrimaryGeneratedColumn('uuid')
     id: string;
+
+    @Column({ name: 'usuario_id', type: 'varchar' })
+    usuarioId: string;
 
     @Column({ type: 'varchar' })
     nome: string;
@@ -30,6 +36,10 @@ export class ClienteModelo {
 
     @UpdateDateColumn({ name: 'atualizado_em' })
     atualizadoEm: Date;
+
+    @ManyToOne(() => UsuarioModelo)
+    @JoinColumn({ name: 'usuario_id' })
+    usuario: UsuarioModelo;
 
     @OneToMany(() => PagamentoModelo, (pagamento) => pagamento.cliente)
     pagamentos: PagamentoModelo[];

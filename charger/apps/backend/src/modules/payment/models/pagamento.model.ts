@@ -11,12 +11,16 @@ import {
 import { StatusPagamento } from '../../../shared/enums/status-pagamento.enum';
 import { ClienteModelo } from '../../clients/models/cliente.model';
 import { TentativaTransacaoModelo } from '../../payment-attempts/models/tentativa-transacao.model';
+import { UsuarioModelo } from '../../users/models/usuario.model';
 import { PaymentAlreadyPaidException } from '../../../shared/exceptions/payment-already-paid.exception';
 
 @Entity('pagamentos')
 export class PagamentoModelo {
     @PrimaryGeneratedColumn('uuid')
     id: string;
+
+    @Column({ name: 'usuario_id', type: 'varchar' })
+    usuarioId: string;
 
     @Column({ name: 'cliente_id', type: 'varchar' })
     clienteId: string;
@@ -52,13 +56,17 @@ export class PagamentoModelo {
     @UpdateDateColumn({ name: 'atualizado_em' })
     atualizadoEm: Date;
 
+    @ManyToOne(() => UsuarioModelo)
+    @JoinColumn({ name: 'usuario_id' })
+    usuario: UsuarioModelo;
+
     @ManyToOne(() => ClienteModelo, (cliente) => cliente.pagamentos)
     @JoinColumn({ name: 'cliente_id' })
     cliente: ClienteModelo;
 
     @OneToMany(() => TentativaTransacaoModelo, (tentativa) => tentativa.pagamento)
     tentativas: TentativaTransacaoModelo[];
-    
+
     podeReceberTentativa(): void {
         if (this.status === StatusPagamento.PAGO) {
             throw new PaymentAlreadyPaidException(this.id);
@@ -66,7 +74,7 @@ export class PagamentoModelo {
     }
 
     marcarComoPago(valorRecebido: number): void {
-        this.status = StatusPagamento.PAGO;
+        this.status   = StatusPagamento.PAGO;
         this.valorPago = valorRecebido;
     }
 
@@ -77,9 +85,7 @@ export class PagamentoModelo {
     }
 
     adicionarTentativa(tentativa: TentativaTransacaoModelo): void {
-        if (!this.tentativas) {
-            this.tentativas = [];
-        }
+        if (!this.tentativas) this.tentativas = [];
         this.tentativas.push(tentativa);
     }
 }
