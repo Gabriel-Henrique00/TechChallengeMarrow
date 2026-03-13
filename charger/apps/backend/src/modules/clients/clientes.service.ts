@@ -13,12 +13,12 @@ export class ClientesService {
     ) {}
 
     async create(dto: CriarClienteDto, usuarioId: string): Promise<ClienteRespostaDto> {
-        const emailExiste = await this.clientesRepository.findByEmail(dto.email);
+        const emailExiste = await this.clientesRepository.findByEmail(dto.email, usuarioId);
         if (emailExiste) {
             throw new ConflictException(`O e-mail ${dto.email} já está em uso por outro cliente.`);
         }
 
-        const documentoExiste = await this.clientesRepository.findByDocumento(dto.documento);
+        const documentoExiste = await this.clientesRepository.findByDocumento(dto.documento, usuarioId);
         if (documentoExiste) {
             throw new ConflictException(`O documento ${dto.documento} já está cadastrado.`);
         }

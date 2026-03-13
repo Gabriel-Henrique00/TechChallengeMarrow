@@ -29,13 +29,13 @@ export class ClientesTypeOrmRepository implements IClientesRepository {
         return modelo ? ClienteMapper.toDomain(modelo) : null;
     }
 
-    async findByEmail(email: string): Promise<Cliente | null> {
-        const modelo = await this.repositorio.findOne({ where: { email } });
+    async findByEmail(email: string, usuarioId: string): Promise<Cliente | null> {
+        const modelo = await this.repositorio.findOne({ where: { email, usuarioId } });
         return modelo ? ClienteMapper.toDomain(modelo) : null;
     }
 
-    async findByDocumento(documento: string): Promise<Cliente | null> {
-        const modelo = await this.repositorio.findOne({ where: { documento } });
+    async findByDocumento(documento: string, usuarioId: string): Promise<Cliente | null> {
+        const modelo = await this.repositorio.findOne({ where: { documento, usuarioId } });
         return modelo ? ClienteMapper.toDomain(modelo) : null;
     }
 }

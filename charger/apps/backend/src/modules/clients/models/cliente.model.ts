@@ -7,11 +7,14 @@ import {
     OneToMany,
     ManyToOne,
     JoinColumn,
+    Unique,
 } from 'typeorm';
 import { PagamentoModelo } from '../../payment/models/pagamento.model';
 import { UsuarioModelo } from '../../users/models/usuario.model';
 
 @Entity('clientes')
+@Unique('UQ_cliente_usuario_email', ['usuarioId', 'email'])
+@Unique('UQ_cliente_usuario_documento', ['usuarioId', 'documento'])
 export class ClienteModelo {
     @PrimaryGeneratedColumn('uuid')
     id: string;
@@ -22,13 +25,13 @@ export class ClienteModelo {
     @Column({ type: 'varchar' })
     nome: string;
 
-    @Column({ type: 'varchar', unique: true })
+    @Column({ type: 'varchar' })
     email: string;
 
     @Column({ type: 'varchar', nullable: true })
     telefone: string | null;
 
-    @Column({ type: 'varchar', length: 14, unique: true })
+    @Column({ type: 'varchar', length: 14 })
     documento: string;
 
     @CreateDateColumn({ name: 'criado_em' })

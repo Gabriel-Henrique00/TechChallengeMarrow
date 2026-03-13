@@ -13,12 +13,14 @@ CREATE TABLE IF NOT EXISTS clientes (
                                         id            CHAR(36)     PRIMARY KEY,
                                         usuario_id    CHAR(36)     NOT NULL,
                                         nome          VARCHAR(150) NOT NULL,
-                                        email         VARCHAR(200) NOT NULL UNIQUE,
+                                        email         VARCHAR(200) NOT NULL,
                                         telefone      VARCHAR(20),
-                                        documento     VARCHAR(14)  NOT NULL UNIQUE,
+                                        documento     VARCHAR(14)  NOT NULL,
                                         criado_em     DATETIME     DEFAULT CURRENT_TIMESTAMP,
                                         atualizado_em DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                                        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+                                        FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+                                        UNIQUE KEY UQ_cliente_usuario_email (usuario_id, email),
+                                        UNIQUE KEY UQ_cliente_usuario_documento (usuario_id, documento)
 );
 
 CREATE TABLE IF NOT EXISTS pagamentos (
