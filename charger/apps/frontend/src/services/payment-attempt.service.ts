@@ -1,15 +1,11 @@
 import { apiClient } from "@/lib/api-client"
-import type { Bank, CreateAttemptPayload, PaymentAttempt } from "@/types"
+import type { PaymentAttempt } from "@/types"
 
 export const paymentAttemptService = {
-    async getAvailableBanks(): Promise<Bank[]> {
-        return apiClient.get<Bank[]>("/payments/banks")
-    },
-
-    async create(pagamentoId: string, payload: CreateAttemptPayload): Promise<PaymentAttempt> {
+    async create(pagamentoId: string): Promise<PaymentAttempt> {
         return apiClient.post<PaymentAttempt>(
             `/payments/${pagamentoId}/attempt`,
-            payload
+            {}
         )
     },
 

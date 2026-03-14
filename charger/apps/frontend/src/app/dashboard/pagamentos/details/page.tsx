@@ -26,7 +26,7 @@ import {
     FileText, Calendar, CreditCard, RefreshCw,
 } from "lucide-react"
 
-const CINCO_MINUTOS_MS = 5 * 60 * 1000
+const DEZ_MINUTOS_MS = 10* 60 * 1000
 const STATUS_COM_NOVA_TENTATIVA = ["AGUARDANDO_PAGAMENTO", "NAO_AUTORIZADO"]
 
 function DetalhePagamentoContent() {
@@ -82,7 +82,7 @@ function DetalhePagamentoContent() {
     const temTentativaPendente = safeAttempts.some((a) => {
         if (a.status !== "PENDENTE") return false
         const idadeMs = Date.now() - new Date(a.criadoEm).getTime()
-        return idadeMs < CINCO_MINUTOS_MS
+        return idadeMs < DEZ_MINUTOS_MS
     })
 
     const checkoutUrl = typeof window !== "undefined"
@@ -301,7 +301,7 @@ function DetalhePagamentoContent() {
                                             <>
                                                 {temTentativaPendente ? (
                                                     <div className="rounded-lg bg-warning/10 p-3 text-center text-sm text-warning">
-                                                        Tentativa em andamento. Aguarde 5 minutos para tentar novamente.
+                                                        Tentativa em andamento. Aguarde 10 minutos para tentar novamente.
                                                     </div>
                                                 ) : (
                                                     <Button className="w-full" asChild>

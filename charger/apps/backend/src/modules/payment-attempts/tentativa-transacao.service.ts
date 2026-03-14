@@ -95,7 +95,7 @@ export class TentativasTransacaoService {
             if (!tentativaCompleta) continue;
 
             tentativaCompleta.status      = StatusTentativa.NAO_AUTORIZADO;
-            tentativaCompleta.motivoFalha = 'Tempo limite de 5 minutos excedido sem confirmação do banco.';
+            tentativaCompleta.motivoFalha = 'Tempo limite de 10 minutos excedido sem confirmação do banco.';
             await this.tentativasRepository.update(tentativaCompleta);
         }
     }

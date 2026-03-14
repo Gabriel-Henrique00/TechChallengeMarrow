@@ -11,42 +11,30 @@ import { Separator } from "@/components/ui/separator"
 import { paymentService } from "@/services/payment.service"
 import { paymentAttemptService } from "@/services/payment-attempt.service"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import type { Payment, Bank } from "@/types"
+import type { Payment } from "@/types"
 import {
-    Zap, CheckCircle2, Lock, Building2, Calendar, CreditCard,
+    Zap, CheckCircle2, Lock, Calendar, CreditCard,
     Loader2, ArrowRight, ShieldCheck, AlertCircle,
 } from "lucide-react"
 
-type CheckoutStep =
-    | "carregando"
-    | "detalhes"
-    | "selecionar-banco"
-    | "processando"
-    | "ja-pago"
-    | "erro"
+type CheckoutStep = "carregando" | "detalhes" | "processando" | "ja-pago" | "erro"
 
 function CheckoutContent() {
     const searchParams = useSearchParams()
     const router       = useRouter()
     const pagamentoId  = searchParams.get("id")
 
-    const [payment, setPayment]           = useState<Payment | null>(null)
-    const [banks, setBanks]               = useState<Bank[]>([])
-    const [step, setStep]                 = useState<CheckoutStep>("carregando")
-    const [selectedBank, setSelectedBank] = useState<Bank | null>(null)
-    const [loadError, setLoadError]       = useState<string | null>(null)
+    const [payment, setPayment]         = useState<Payment | null>(null)
+    const [step, setStep]               = useState<CheckoutStep>("carregando")
+    const [loadError, setLoadError]     = useState<string | null>(null)
     const [paymentError, setPaymentError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!pagamentoId) { router.replace("/"); return }
 
-        Promise.all([
-            paymentService.findById(pagamentoId),
-            paymentAttemptService.getAvailableBanks(),
-        ])
-            .then(([p, b]) => {
+        paymentService.findById(pagamentoId)
+            .then((p) => {
                 setPayment(p)
-                setBanks(b ?? [])
                 setStep(p.status === "PAGO" ? "ja-pago" : "detalhes")
             })
             .catch((err) => {
@@ -55,37 +43,32 @@ function CheckoutContent() {
             })
     }, [pagamentoId, router])
 
-    // Cria tentativa e redireciona direto para o paymentUrl da Pluggy
-    const handleConfirmarPagamento = async () => {
-        if (!selectedBank || !payment) return
+    const handleRealizarPagamento = async () => {
+        if (!payment) return
         setPaymentError(null)
         setStep("processando")
 
         try {
-            const attempt = await paymentAttemptService.create(pagamentoId!, {
-                idBanco:   selectedBank.id,
-                nomeBanco: selectedBank.nome,
-            })
+            // Cria tentativa sem informar banco — Pluggy cuida da seleção
+            const attempt = await paymentAttemptService.create(pagamentoId!)
 
             if (attempt.paymentUrl) {
                 // Redireciona direto para a página de pagamento da Pluggy
                 window.location.href = attempt.paymentUrl
             } else {
-                // paymentUrl nulo = Pluggy não configurada ou retornou erro
                 setPaymentError(
                     attempt.motivoFalha ??
                     "Não foi possível gerar o link de pagamento. Verifique as credenciais da Pluggy no servidor."
                 )
-                setStep("selecionar-banco")
+                setStep("detalhes")
             }
         } catch (err: any) {
             console.error(err)
             setPaymentError(err?.message ?? "Erro ao processar pagamento. Tente novamente.")
-            setStep("selecionar-banco")
+            setStep("detalhes")
         }
     }
 
-    // Erro ao carregar dados iniciais
     if (loadError) {
         return (
             <main className="flex flex-1 items-center justify-center p-8">
@@ -94,7 +77,9 @@ function CheckoutContent() {
                         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
                             <AlertCircle className="h-8 w-8 text-destructive" />
                         </div>
-                        <h1 className="mb-2 text-xl font-bold text-destructive">Pagamento não encontrado</h1>
+                        <h1 className="mb-2 text-xl font-bold text-destructive">
+                            Pagamento não encontrado
+                        </h1>
                         <p className="text-muted-foreground">{loadError}</p>
                     </CardContent>
                 </Card>
@@ -103,7 +88,7 @@ function CheckoutContent() {
     }
 
     return (
-        <main className="mx-auto max-w-3xl px-4 py-8">
+        <main className="mx-auto max-w-xl px-4 py-8">
 
             {/* Carregando */}
             {step === "carregando" && (
@@ -121,7 +106,7 @@ function CheckoutContent() {
                         </div>
                         <h1 className="mb-2 text-2xl font-bold">Pagamento Já Realizado</h1>
                         <p className="mx-auto mb-6 max-w-md text-muted-foreground">
-                            Esta cobrança já foi paga. Não é necessária uma nova tentativa.
+                            Esta cobrança já foi paga.
                         </p>
                         <div className="mx-auto max-w-sm rounded-lg bg-muted p-4">
                             <p className="text-sm text-muted-foreground">Valor pago</p>
@@ -138,9 +123,16 @@ function CheckoutContent() {
                     <div className="text-center">
                         <h1 className="text-2xl font-bold">Realizar Pagamento</h1>
                         <p className="mt-2 text-muted-foreground">
-                            Confira os dados da cobrança antes de prosseguir
+                            Confira os dados antes de prosseguir
                         </p>
                     </div>
+
+                    {paymentError && (
+                        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                            <span>{paymentError}</span>
+                        </div>
+                    )}
 
                     <Card>
                         <CardHeader>
@@ -181,118 +173,24 @@ function CheckoutContent() {
                             <Button
                                 className="w-full"
                                 size="lg"
-                                onClick={() => setStep("selecionar-banco")}
+                                onClick={handleRealizarPagamento}
                             >
-                                Realizar Pagamento
+                                Realizar Pagamento via Open Finance
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
 
                             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                                 <ShieldCheck className="h-4 w-4" />
-                                <span>Pagamento processado via Pluggy (Open Finance)</span>
+                                <span>
+                  Você será redirecionado para a Pluggy para escolher seu banco e concluir o pagamento
+                </span>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             )}
 
-            {/* Seleção de banco */}
-            {step === "selecionar-banco" && (
-                <div className="space-y-6">
-                    <div className="text-center">
-                        <h1 className="text-2xl font-bold">Escolha seu Banco</h1>
-                        <p className="mt-2 text-muted-foreground">
-                            Selecione a instituição financeira para realizar o pagamento
-                        </p>
-                    </div>
-
-                    {/* Erro de pagamento */}
-                    {paymentError && (
-                        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                            <span>{paymentError}</span>
-                        </div>
-                    )}
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Bancos Disponíveis</CardTitle>
-                            <CardDescription>
-                                Utilize a Iniciação de Pagamento via Open Finance
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {banks.length === 0 ? (
-                                <div className="flex h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-                                    Nenhum banco disponível no momento
-                                </div>
-                            ) : (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    {(banks ?? []).map((bank) => (
-                                        <button
-                                            key={bank.id}
-                                            onClick={() => setSelectedBank(bank)}
-                                            className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted ${
-                                                selectedBank?.id === bank.id
-                                                    ? "border-primary bg-primary/5"
-                                                    : "border-border"
-                                            }`}
-                                        >
-                                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                                                <Building2 className="h-5 w-5 text-muted-foreground" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate font-medium">{bank.nome}</p>
-                                                <p className="text-xs text-muted-foreground">ID: {bank.id}</p>
-                                            </div>
-                                            {selectedBank?.id === bank.id && (
-                                                <CheckCircle2 className="ml-auto h-5 w-5 flex-shrink-0 text-primary" />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Valor total a pagar</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(payment?.valor ?? 0)}</p>
-                                </div>
-                                <Button
-                                    size="lg"
-                                    disabled={!selectedBank}
-                                    onClick={handleConfirmarPagamento}
-                                >
-                                    Confirmar Pagamento
-                                </Button>
-                            </div>
-                            {selectedBank && (
-                                <p className="mt-4 text-sm text-muted-foreground">
-                                    Você será redirecionado para o aplicativo do{" "}
-                                    <span className="font-medium text-foreground">
-                    {selectedBank.nome}
-                  </span>{" "}
-                                    para concluir o pagamento.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Button
-                        variant="ghost"
-                        className="w-full"
-                        onClick={() => { setPaymentError(null); setStep("detalhes") }}
-                    >
-                        Voltar
-                    </Button>
-                </div>
-            )}
-
-            {/* Processando — redireciona para Pluggy */}
+            {/* Processando */}
             {step === "processando" && (
                 <Card className="text-center">
                     <CardContent className="py-12">
@@ -301,12 +199,11 @@ function CheckoutContent() {
                         </div>
                         <h1 className="mb-2 text-2xl font-bold">Iniciando Pagamento</h1>
                         <p className="mx-auto max-w-md text-muted-foreground">
-                            Aguarde, estamos conectando com seu banco via Open Finance...
+                            Aguarde, estamos gerando seu link de pagamento seguro via Open Finance...
                         </p>
                     </CardContent>
                 </Card>
             )}
-
         </main>
     )
 }
@@ -315,7 +212,7 @@ export default function CheckoutPage() {
     return (
         <div className="min-h-screen bg-background">
             <header className="border-b border-border bg-card">
-                <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+                <div className="mx-auto flex h-16 max-w-xl items-center justify-between px-4">
                     <Link href="/" className="flex items-center gap-2">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                             <Zap className="h-4 w-4 text-primary-foreground" />
@@ -338,7 +235,7 @@ export default function CheckoutPage() {
             </Suspense>
 
             <footer className="border-t border-border bg-card py-6">
-                <div className="mx-auto max-w-3xl px-4 text-center text-sm text-muted-foreground">
+                <div className="mx-auto max-w-xl px-4 text-center text-sm text-muted-foreground">
                     <p>
                         Pagamento processado com segurança via{" "}
                         <span className="font-medium text-foreground">Pluggy</span>{" "}
