@@ -14,7 +14,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Payment, Bank } from "@/types"
 import {
     Zap, CheckCircle2, Lock, Building2, Calendar, CreditCard,
-    Loader2, ArrowRight, ShieldCheck,
+    Loader2, ArrowRight, ShieldCheck, AlertCircle,
 } from "lucide-react"
 
 type CheckoutStep =
@@ -22,7 +22,6 @@ type CheckoutStep =
     | "detalhes"
     | "selecionar-banco"
     | "processando"
-    | "concluido"
     | "ja-pago"
     | "erro"
 
@@ -35,8 +34,8 @@ function CheckoutContent() {
     const [banks, setBanks]               = useState<Bank[]>([])
     const [step, setStep]                 = useState<CheckoutStep>("carregando")
     const [selectedBank, setSelectedBank] = useState<Bank | null>(null)
-    const [hasError, setHasError]         = useState(false)
-    const [redirectUrl, setRedirectUrl]   = useState<string | null>(null)
+    const [loadError, setLoadError]       = useState<string | null>(null)
+    const [paymentError, setPaymentError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!pagamentoId) { router.replace("/"); return }
@@ -50,47 +49,70 @@ function CheckoutContent() {
                 setBanks(b ?? [])
                 setStep(p.status === "PAGO" ? "ja-pago" : "detalhes")
             })
-            .catch(() => setHasError(true))
+            .catch((err) => {
+                console.error(err)
+                setLoadError(err?.message ?? "Erro ao carregar pagamento.")
+            })
     }, [pagamentoId, router])
 
-    if (hasError) {
+    // Cria tentativa e redireciona direto para o paymentUrl da Pluggy
+    const handleConfirmarPagamento = async () => {
+        if (!selectedBank || !payment) return
+        setPaymentError(null)
+        setStep("processando")
+
+        try {
+            const attempt = await paymentAttemptService.create(pagamentoId!, {
+                idBanco:   selectedBank.id,
+                nomeBanco: selectedBank.nome,
+            })
+
+            if (attempt.paymentUrl) {
+                // Redireciona direto para a página de pagamento da Pluggy
+                window.location.href = attempt.paymentUrl
+            } else {
+                // paymentUrl nulo = Pluggy não configurada ou retornou erro
+                setPaymentError(
+                    attempt.motivoFalha ??
+                    "Não foi possível gerar o link de pagamento. Verifique as credenciais da Pluggy no servidor."
+                )
+                setStep("selecionar-banco")
+            }
+        } catch (err: any) {
+            console.error(err)
+            setPaymentError(err?.message ?? "Erro ao processar pagamento. Tente novamente.")
+            setStep("selecionar-banco")
+        }
+    }
+
+    // Erro ao carregar dados iniciais
+    if (loadError) {
         return (
             <main className="flex flex-1 items-center justify-center p-8">
                 <Card className="w-full max-w-md text-center">
                     <CardContent className="py-12">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                            <AlertCircle className="h-8 w-8 text-destructive" />
+                        </div>
                         <h1 className="mb-2 text-xl font-bold text-destructive">Pagamento não encontrado</h1>
-                        <p className="text-muted-foreground">O link de pagamento informado é inválido ou expirou.</p>
+                        <p className="text-muted-foreground">{loadError}</p>
                     </CardContent>
                 </Card>
             </main>
         )
     }
 
-    const handleConfirmarPagamento = async () => {
-        if (!selectedBank || !payment) return
-        setStep("processando")
-
-        try {
-            const attempt = await paymentAttemptService.create(pagamentoId!, {
-                idBanco:   selectedBank.id ?? selectedBank.code,
-                nomeBanco: selectedBank.name,
-            })
-            if (attempt.paymentUrl) setRedirectUrl(attempt.paymentUrl)
-            setStep("concluido")
-        } catch {
-            setStep("erro")
-        }
-    }
-
     return (
         <main className="mx-auto max-w-3xl px-4 py-8">
 
+            {/* Carregando */}
             {step === "carregando" && (
                 <div className="flex h-64 items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             )}
 
+            {/* Já pago */}
             {step === "ja-pago" && (
                 <Card className="text-center">
                     <CardContent className="py-12">
@@ -110,17 +132,22 @@ function CheckoutContent() {
                 </Card>
             )}
 
+            {/* Detalhes do pagamento */}
             {step === "detalhes" && payment && (
                 <div className="space-y-6">
                     <div className="text-center">
                         <h1 className="text-2xl font-bold">Realizar Pagamento</h1>
-                        <p className="mt-2 text-muted-foreground">Confira os dados da cobrança antes de prosseguir</p>
+                        <p className="mt-2 text-muted-foreground">
+                            Confira os dados da cobrança antes de prosseguir
+                        </p>
                     </div>
 
                     <Card>
                         <CardHeader>
                             <CardTitle>{payment.nome}</CardTitle>
-                            {payment.descricao && <CardDescription>{payment.descricao}</CardDescription>}
+                            {payment.descricao && (
+                                <CardDescription>{payment.descricao}</CardDescription>
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -151,8 +178,12 @@ function CheckoutContent() {
                                 <p className="font-medium">{payment.nomeCliente}</p>
                             </div>
 
-                            <Button className="w-full" size="lg" onClick={() => setStep("selecionar-banco")}>
-                                Continuar para pagamento
+                            <Button
+                                className="w-full"
+                                size="lg"
+                                onClick={() => setStep("selecionar-banco")}
+                            >
+                                Realizar Pagamento
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
 
@@ -165,6 +196,7 @@ function CheckoutContent() {
                 </div>
             )}
 
+            {/* Seleção de banco */}
             {step === "selecionar-banco" && (
                 <div className="space-y-6">
                     <div className="text-center">
@@ -174,124 +206,107 @@ function CheckoutContent() {
                         </p>
                     </div>
 
+                    {/* Erro de pagamento */}
+                    {paymentError && (
+                        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            <span>{paymentError}</span>
+                        </div>
+                    )}
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Bancos Disponíveis</CardTitle>
-                            <CardDescription>Utilize a Iniciação de Pagamento via Open Finance</CardDescription>
+                            <CardDescription>
+                                Utilize a Iniciação de Pagamento via Open Finance
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                {(banks ?? []).map((bank) => (
-                                    <button
-                                        key={bank.id ?? bank.code}
-                                        onClick={() => setSelectedBank(bank)}
-                                        className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted ${
-                                            selectedBank?.id === bank.id ? "border-primary bg-primary/5" : "border-border"
-                                        }`}
-                                    >
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                            <Building2 className="h-5 w-5 text-muted-foreground" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium">{bank.name}</p>
-                                            <p className="text-xs text-muted-foreground">Código: {bank.code}</p>
-                                        </div>
-                                        {selectedBank?.id === bank.id && (
-                                            <CheckCircle2 className="ml-auto h-5 w-5 text-primary" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+                            {banks.length === 0 ? (
+                                <div className="flex h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
+                                    Nenhum banco disponível no momento
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {(banks ?? []).map((bank) => (
+                                        <button
+                                            key={bank.id}
+                                            onClick={() => setSelectedBank(bank)}
+                                            className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted ${
+                                                selectedBank?.id === bank.id
+                                                    ? "border-primary bg-primary/5"
+                                                    : "border-border"
+                                            }`}
+                                        >
+                                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
+                                                <Building2 className="h-5 w-5 text-muted-foreground" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate font-medium">{bank.nome}</p>
+                                                <p className="text-xs text-muted-foreground">ID: {bank.id}</p>
+                                            </div>
+                                            {selectedBank?.id === bank.id && (
+                                                <CheckCircle2 className="ml-auto h-5 w-5 flex-shrink-0 text-primary" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-4">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Valor total a pagar</p>
                                     <p className="text-2xl font-bold">{formatCurrency(payment?.valor ?? 0)}</p>
                                 </div>
-                                <Button size="lg" disabled={!selectedBank} onClick={handleConfirmarPagamento}>
+                                <Button
+                                    size="lg"
+                                    disabled={!selectedBank}
+                                    onClick={handleConfirmarPagamento}
+                                >
                                     Confirmar Pagamento
                                 </Button>
                             </div>
                             {selectedBank && (
                                 <p className="mt-4 text-sm text-muted-foreground">
                                     Você será redirecionado para o aplicativo do{" "}
-                                    <span className="font-medium text-foreground">{selectedBank.name}</span>{" "}
-                                    para confirmar o pagamento.
+                                    <span className="font-medium text-foreground">
+                    {selectedBank.nome}
+                  </span>{" "}
+                                    para concluir o pagamento.
                                 </p>
                             )}
                         </CardContent>
                     </Card>
 
-                    <Button variant="ghost" className="w-full" onClick={() => setStep("detalhes")}>
+                    <Button
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => { setPaymentError(null); setStep("detalhes") }}
+                    >
                         Voltar
                     </Button>
                 </div>
             )}
 
+            {/* Processando — redireciona para Pluggy */}
             {step === "processando" && (
                 <Card className="text-center">
                     <CardContent className="py-12">
                         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
-                        <h1 className="mb-2 text-2xl font-bold">Processando Pagamento</h1>
+                        <h1 className="mb-2 text-2xl font-bold">Iniciando Pagamento</h1>
                         <p className="mx-auto max-w-md text-muted-foreground">
-                            Aguarde enquanto iniciamos sua transação via Open Finance...
+                            Aguarde, estamos conectando com seu banco via Open Finance...
                         </p>
                     </CardContent>
                 </Card>
             )}
 
-            {step === "concluido" && (
-                <Card className="text-center">
-                    <CardContent className="py-12">
-                        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
-                            <CheckCircle2 className="h-10 w-10 text-success" />
-                        </div>
-                        <h1 className="mb-2 text-2xl font-bold">Tentativa Registrada!</h1>
-                        <p className="mx-auto mb-6 max-w-md text-muted-foreground">
-                            Sua tentativa foi registrada com sucesso via Pluggy Open Finance.
-                        </p>
-                        {redirectUrl && (
-                            <Button size="lg" asChild className="mb-6">
-                                <a href={redirectUrl} target="_blank" rel="noopener noreferrer">
-                                    Continuar no banco
-                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                </a>
-                            </Button>
-                        )}
-                        <div className="mx-auto max-w-sm rounded-lg bg-muted p-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Valor</span>
-                                <span className="font-bold">{formatCurrency(payment?.valor ?? 0)}</span>
-                            </div>
-                            <Separator className="my-3" />
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Banco</span>
-                                <span className="font-medium">{selectedBank?.name}</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {step === "erro" && (
-                <Card className="text-center">
-                    <CardContent className="py-12">
-                        <h1 className="mb-2 text-2xl font-bold text-destructive">Erro ao Processar</h1>
-                        <p className="text-muted-foreground">
-                            Não foi possível iniciar o pagamento. Tente novamente.
-                        </p>
-                        <Button className="mt-6" variant="outline" onClick={() => setStep("selecionar-banco")}>
-                            Tentar novamente
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
         </main>
     )
 }
@@ -326,16 +341,20 @@ export default function CheckoutPage() {
                 <div className="mx-auto max-w-3xl px-4 text-center text-sm text-muted-foreground">
                     <p>
                         Pagamento processado com segurança via{" "}
-                        <span className="font-medium text-foreground">Pluggy</span> (Open Finance)
+                        <span className="font-medium text-foreground">Pluggy</span>{" "}
+                        (Open Finance)
                     </p>
                     <p className="mt-1">
                         Dúvidas?{" "}
-                        <a href="mailto:suporte@charger.com" className="text-primary underline underline-offset-4">
-                            suporte@charger.com
-                        </a>
-                    </p>
-                </div>
-            </footer>
+                        <a
+                        href="mailto:suporte@charger.com"
+                        className="text-primary underline underline-offset-4"
+                        >
+                        suporte@charger.com
+                    </a>
+                </p>
         </div>
-    )
+</footer>
+</div>
+)
 }

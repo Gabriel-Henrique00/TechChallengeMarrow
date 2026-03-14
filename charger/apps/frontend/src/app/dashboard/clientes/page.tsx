@@ -16,23 +16,31 @@ import { clientService } from "@/services/client.service"
 import { paymentService } from "@/services/payment.service"
 import { formatDate, formatCurrency, formatDocument } from "@/lib/utils"
 import type { Client, Payment } from "@/types"
-import { Eye, Plus, Search, User } from "lucide-react"
+import { Eye, Plus, Search, User, AlertCircle, RefreshCw } from "lucide-react"
 
 export default function ClientesPage() {
     const [clients, setClients]     = useState<Client[]>([])
     const [payments, setPayments]   = useState<Payment[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [error, setError]         = useState<string | null>(null)
     const [search, setSearch]       = useState("")
 
-    useEffect(() => {
+    const loadData = () => {
+        setIsLoading(true)
+        setError(null)
         Promise.all([clientService.findAll(), paymentService.findAll()])
             .then(([c, p]) => {
                 setClients(c ?? [])
                 setPayments(p ?? [])
             })
-            .catch(console.error)
+            .catch((err) => {
+                console.error(err)
+                setError(err?.message ?? "Erro ao carregar clientes.")
+            })
             .finally(() => setIsLoading(false))
-    }, [])
+    }
+
+    useEffect(() => { loadData() }, [])
 
     const filtered = (clients ?? []).filter(
         (c) =>
@@ -52,6 +60,25 @@ export default function ClientesPage() {
             <AppHeader title="Clientes" subtitle="Gerencie os clientes cadastrados no sistema" />
             <main className="flex-1 overflow-auto p-6">
                 <div className="mx-auto max-w-7xl space-y-6">
+
+                    {error && (
+                        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                <span>{error}</span>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={loadData}
+                                className="ml-4 text-destructive hover:text-destructive"
+                            >
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Tentar novamente
+                            </Button>
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="relative flex-1 sm:max-w-sm">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -102,7 +129,7 @@ export default function ClientesPage() {
                                         {filtered.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                                    Nenhum cliente encontrado.
+                                                    {error ? "Erro ao carregar dados." : "Nenhum cliente encontrado."}
                                                 </TableCell>
                                             </TableRow>
                                         ) : (

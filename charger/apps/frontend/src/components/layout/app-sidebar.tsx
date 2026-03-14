@@ -23,10 +23,11 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+
 const NAV_ITEMS = [
     { label: "Dashboard",       href: "/dashboard",               icon: LayoutDashboard },
     { label: "Pagamentos",      href: "/dashboard/pagamentos",    icon: Receipt        },
-    { label: "Novo Pagamento",  href: "/dashboard/pagamentos/novo", icon: PlusCircle   },
+    { label: "Novo Pagamento",  href: "/dashboard/pagamentos/create", icon: PlusCircle   },
     { label: "Clientes",        href: "/dashboard/clientes",      icon: Users          },
 ]
 
@@ -59,7 +60,9 @@ export function AppSidebar() {
                             {NAV_ITEMS.map((item) => {
                                 const isActive =
                                     pathname === item.href ||
-                                    (item.href !== "/dashboard" && pathname.startsWith(item.href))
+                                    (item.href !== "/dashboard" && item.href !== "/dashboard/pagamentos" && pathname.startsWith(item.href)) ||
+                                    (item.href === "/dashboard/pagamentos" && pathname === "/dashboard/pagamentos")
+
                                 return (
                                     <SidebarMenuItem key={item.label}>
                                         <SidebarMenuButton asChild isActive={isActive}>

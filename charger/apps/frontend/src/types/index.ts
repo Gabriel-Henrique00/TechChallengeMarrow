@@ -96,16 +96,13 @@ export interface CreateAttemptPayload {
     nomeBanco: string
 }
 
-// ─── Bank ────────────────────────────────────────────────────────────────────
+
 
 export interface Bank {
     id: string
-    name: string
-    code: string
-    logo?: string
+    nome: string
 }
 
-// ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export interface DashboardPaymentItem {
     id: string

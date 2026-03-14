@@ -24,6 +24,8 @@ async function request<T>(
 ): Promise<T> {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        // Necessário para o ngrok não retornar página de aviso no lugar do JSON
+        "ngrok-skip-browser-warning": "1",
         ...(options.headers as Record<string, string>),
     }
 
@@ -49,7 +51,7 @@ async function request<T>(
     if (!response.ok) {
         const message =
             (data as { message?: string })?.message ??
-            `Request failed with status ${response.status}`
+            `Erro ${response.status} ao acessar ${path}`
         throw new ApiError(response.status, message, data)
     }
 

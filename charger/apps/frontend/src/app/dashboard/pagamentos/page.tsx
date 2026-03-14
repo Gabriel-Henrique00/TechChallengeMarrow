@@ -19,21 +19,29 @@ import { StatusBadge } from "@/components/common/status-badge"
 import { paymentService } from "@/services/payment.service"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Payment } from "@/types"
-import { Eye, Plus, Search, Filter } from "lucide-react"
+import { Eye, Plus, Search, Filter, AlertCircle, RefreshCw } from "lucide-react"
 
 export default function PagamentosPage() {
     const [payments, setPayments]         = useState<Payment[]>([])
     const [isLoading, setIsLoading]       = useState(true)
+    const [error, setError]               = useState<string | null>(null)
     const [search, setSearch]             = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
 
-    useEffect(() => {
+    const loadData = () => {
+        setIsLoading(true)
+        setError(null)
         paymentService
             .findAll()
             .then((data) => setPayments(data ?? []))
-            .catch(console.error)
+            .catch((err) => {
+                console.error(err)
+                setError(err?.message ?? "Erro ao carregar pagamentos.")
+            })
             .finally(() => setIsLoading(false))
-    }, [])
+    }
+
+    useEffect(() => { loadData() }, [])
 
     const filtered = (payments ?? []).filter((p) => {
         const matchSearch =
@@ -49,6 +57,25 @@ export default function PagamentosPage() {
             <AppHeader title="Pagamentos" subtitle="Gerencie todas as cobranças do sistema" />
             <main className="flex-1 overflow-auto p-6">
                 <div className="mx-auto max-w-7xl space-y-6">
+
+                    {error && (
+                        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                <span>{error}</span>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={loadData}
+                                className="ml-4 text-destructive hover:text-destructive"
+                            >
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Tentar novamente
+                            </Button>
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
                             <div className="relative flex-1 sm:max-w-sm">
@@ -117,7 +144,7 @@ export default function PagamentosPage() {
                                         {filtered.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                                    Nenhum pagamento encontrado.
+                                                    {error ? "Erro ao carregar dados." : "Nenhum pagamento encontrado."}
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
