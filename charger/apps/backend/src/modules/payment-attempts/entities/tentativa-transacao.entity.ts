@@ -4,8 +4,6 @@ export class TentativaTransacao {
     id: string;
     pagamentoId: string;
     status: StatusTentativa;
-    idBanco: string;
-    nomeBanco: string;
     referenciaExterna: string | null;
     motivoFalha: string | null;
     valorTentativa: number;

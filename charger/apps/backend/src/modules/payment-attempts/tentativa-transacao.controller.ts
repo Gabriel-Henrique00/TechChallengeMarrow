@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { TentativasTransacaoService } from './tentativa-transacao.service';
-import { CriarTentativaDto } from './dto/create-tentativa.dto';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 
@@ -21,10 +20,9 @@ export class TentativasTransacaoController {
     @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
     criar(
         @Param('id') pagamentoId: string,
-        @Body() dto: CriarTentativaDto,
         @UsuarioAtual() usuario: { id: string },
     ) {
-        return this.tentativasService.create(pagamentoId, dto, usuario.id);
+        return this.tentativasService.create(pagamentoId, usuario.id);
     }
 
     @Get(':id/attempts')

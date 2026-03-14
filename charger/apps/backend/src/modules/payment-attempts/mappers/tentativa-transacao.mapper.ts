@@ -1,6 +1,5 @@
 import { TentativaTransacao } from '../entities/tentativa-transacao.entity';
 import { TentativaTransacaoModelo } from '../models/tentativa-transacao.model';
-import { CriarTentativaDto } from '../dto/create-tentativa.dto';
 import { TentativaRespostaDto } from '../dto/tentativa-response.dto';
 
 export class TentativaTransacaoMapper {
@@ -9,8 +8,6 @@ export class TentativaTransacaoMapper {
         tentativa.id                = modelo.id;
         tentativa.pagamentoId       = modelo.pagamentoId;
         tentativa.status            = modelo.status;
-        tentativa.idBanco           = modelo.idBanco;
-        tentativa.nomeBanco         = modelo.bancoNome;
         tentativa.referenciaExterna = modelo.referenciaExterna ?? null;
         tentativa.motivoFalha       = modelo.motivoFalha ?? null;
         tentativa.valorTentativa    = Number(modelo.valorTentativa);
@@ -24,8 +21,6 @@ export class TentativaTransacaoMapper {
         return {
             pagamentoId:       tentativa.pagamentoId,
             status:            tentativa.status,
-            idBanco:           tentativa.idBanco,
-            bancoNome:         tentativa.nomeBanco,
             referenciaExterna: tentativa.referenciaExterna,
             motivoFalha:       tentativa.motivoFalha,
             valorTentativa:    tentativa.valorTentativa,
@@ -34,23 +29,22 @@ export class TentativaTransacaoMapper {
         };
     }
 
-    static fromCreateDto(dto: CriarTentativaDto, pagamentoId: string, valor: number): Partial<TentativaTransacao> {
+    static fromCreateDto(pagamentoId: string, valor: number): Partial<TentativaTransacao> {
         const tentativa = new TentativaTransacao();
         tentativa.pagamentoId    = pagamentoId;
-        tentativa.idBanco        = dto.idBanco;
-        tentativa.nomeBanco      = dto.nomeBanco;
         tentativa.valorTentativa = valor;
         tentativa.dataTentativa  = new Date();
         return tentativa;
     }
 
-    static toResponseDto(tentativa: TentativaTransacao, paymentUrl: string | null = null): TentativaRespostaDto {
+    static toResponseDto(
+        tentativa: TentativaTransacao,
+        paymentUrl: string | null = null,
+    ): TentativaRespostaDto {
         return {
             id:                tentativa.id,
             pagamentoId:       tentativa.pagamentoId,
             status:            tentativa.status,
-            idBanco:           tentativa.idBanco,
-            nomeBanco:         tentativa.nomeBanco,
             referenciaExterna: tentativa.referenciaExterna,
             motivoFalha:       tentativa.motivoFalha,
             valorTentativa:    tentativa.valorTentativa,

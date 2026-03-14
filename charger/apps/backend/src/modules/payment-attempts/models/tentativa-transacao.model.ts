@@ -17,17 +17,8 @@ export class TentativaTransacaoModelo {
     @Column({ name: 'pagamento_id', type: 'varchar' })
     pagamentoId: string;
 
-    @Column({
-        type: 'enum',
-        enum: StatusTentativa,
-    })
+    @Column({ type: 'enum', enum: StatusTentativa })
     status: StatusTentativa;
-
-    @Column({ name: 'id_banco', type: 'varchar' })
-    idBanco: string;
-
-    @Column({ name: 'banco_nome', type: 'varchar' })
-    bancoNome: string;
 
     @Column({ name: 'referencia_externa', type: 'varchar', nullable: true })
     referenciaExterna: string | null;

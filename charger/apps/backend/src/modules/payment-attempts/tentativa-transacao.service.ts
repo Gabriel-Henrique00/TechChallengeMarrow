@@ -3,7 +3,6 @@ import type { ITentativasTransacaoRepository } from './repositories/tentativa-tr
 import type { IPagamentosRepository } from '../payment/repositories/pagamento.repository';
 import type { IPaymentProvider } from '../../integrations/payment-provider/provedor-pagamento.interface';
 import { TentativaTransacaoMapper } from './mappers/tentativa-transacao.mapper';
-import { CriarTentativaDto } from './dto/create-tentativa.dto';
 import { TentativaRespostaDto } from './dto/tentativa-response.dto';
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
 import { StatusPagamento } from '../../shared/enums/status-pagamento.enum';
@@ -22,11 +21,7 @@ export class TentativasTransacaoService {
         private readonly paymentProvider: IPaymentProvider,
     ) {}
 
-    async create(
-        pagamentoId: string,
-        dto: CriarTentativaDto,
-        usuarioId: string,
-    ): Promise<TentativaRespostaDto> {
+    async create(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto> {
         const pagamento = await this.pagamentosRepository.findByIdWithAttempts(pagamentoId, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
 
@@ -59,7 +54,7 @@ export class TentativasTransacaoService {
             descricao: pagamento.descricao ?? pagamento.nome,
         });
 
-        const dadosTentativa             = TentativaTransacaoMapper.fromCreateDto(dto, pagamentoId, pagamento.valor);
+        const dadosTentativa             = TentativaTransacaoMapper.fromCreateDto(pagamentoId, pagamento.valor);
         dadosTentativa.status            = resultado.status;
         dadosTentativa.referenciaExterna = resultado.referenciaExterna ?? null;
         dadosTentativa.motivoFalha       = resultado.motivoFalha ?? null;
@@ -75,10 +70,7 @@ export class TentativasTransacaoService {
         return TentativaTransacaoMapper.toResponseDto(tentativa, resultado.paymentUrl);
     }
 
-    async findByPaymentId(
-        pagamentoId: string,
-        usuarioId: string,
-    ): Promise<TentativaRespostaDto[]> {
+    async findByPaymentId(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto[]> {
         const pagamento = await this.pagamentosRepository.findById(pagamentoId, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
 
@@ -87,7 +79,7 @@ export class TentativasTransacaoService {
     }
 
     private async expirarTentativasPendentes(
-        tentativas: Array<{ id: string; status: string; criadoEm: Date; pagamentoId?: string }>,
+        tentativas: Array<{ id: string; status: string; criadoEm: Date }>,
         pagamentoId: string,
     ): Promise<void> {
         const agora = Date.now();

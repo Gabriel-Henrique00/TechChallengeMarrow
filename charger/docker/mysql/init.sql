@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS clientes (
                                         criado_em     DATETIME     DEFAULT CURRENT_TIMESTAMP,
                                         atualizado_em DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                                         FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
-                                        UNIQUE KEY UQ_cliente_usuario_email (usuario_id, email),
+                                        UNIQUE KEY UQ_cliente_usuario_email    (usuario_id, email),
                                         UNIQUE KEY UQ_cliente_usuario_documento (usuario_id, documento)
 );
 
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
 CREATE TABLE IF NOT EXISTS tentativas_transacao (
                                                     id                 CHAR(36)      PRIMARY KEY,
                                                     pagamento_id       CHAR(36)      NOT NULL,
-                                                    status             ENUM('SUCESSO','FALHA','NAO_AUTORIZADO','PENDENTE'),                                                    banco_nome         VARCHAR(150),
+                                                    status             ENUM('SUCESSO','FALHA','NAO_AUTORIZADO','PENDENTE'),
                                                     referencia_externa VARCHAR(100),
                                                     motivo_falha       VARCHAR(500),
                                                     valor_tentativa    DECIMAL(10,2),

@@ -1,5 +1,4 @@
 // ─── Auth ────────────────────────────────────────────────────────────────────
-
 export interface AuthUser {
     id: string
     nome: string
@@ -26,7 +25,6 @@ export interface RegisterPayload {
 }
 
 // ─── Client ──────────────────────────────────────────────────────────────────
-
 export interface Client {
     id: string
     nome: string
@@ -44,7 +42,6 @@ export interface CreateClientPayload {
 }
 
 // ─── Payment ─────────────────────────────────────────────────────────────────
-
 export type PaymentStatus =
     | "AGUARDANDO_PAGAMENTO"
     | "PAGO"
@@ -74,15 +71,12 @@ export interface CreatePaymentPayload {
 }
 
 // ─── Payment Attempt ─────────────────────────────────────────────────────────
-
 export type AttemptStatus = "PENDENTE" | "SUCESSO" | "FALHA" | "NAO_AUTORIZADO"
 
 export interface PaymentAttempt {
     id: string
     pagamentoId: string
     status: AttemptStatus
-    idBanco: string
-    nomeBanco: string
     referenciaExterna: string | null
     motivoFalha: string | null
     valorTentativa: number
@@ -91,19 +85,7 @@ export interface PaymentAttempt {
     criadoEm: string
 }
 
-export interface CreateAttemptPayload {
-    idBanco: string
-    nomeBanco: string
-}
-
-
-
-export interface Bank {
-    id: string
-    nome: string
-}
-
-
+// ─── Dashboard ───────────────────────────────────────────────────────────────
 export interface DashboardPaymentItem {
     id: string
     nome: string
