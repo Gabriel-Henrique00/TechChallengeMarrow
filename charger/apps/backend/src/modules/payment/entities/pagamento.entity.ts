@@ -1,7 +1,8 @@
 import { StatusPagamento } from '../../../shared/enums/status-pagamento.enum';
 import { StatusTentativa } from '../../../shared/enums/status-tentativa.enum';
 import { TentativaTransacao } from '../../payment-attempts/entities/tentativa-transacao.entity';
-import { PaymentAlreadyPaidException } from '../../../shared/exceptions/payment-already-paid.exception';
+
+export const EXPIRACAO_TENTATIVA_MS = 5 * 60 * 1000;
 
 export class Pagamento {
     id: string;
@@ -20,23 +21,41 @@ export class Pagamento {
     atualizadoEm: Date;
 
     podeReceberTentativa(): boolean {
-        return this.status !== StatusPagamento.PAGO;
+        if (this.status === StatusPagamento.PAGO)    return false;
+        if (this.status === StatusPagamento.VENCIDO) return false;
+        if (new Date() > this.dataVencimento)        return false;
+
+        const temPendenteAtivo = (this.tentativas ?? []).some((t) => {
+            if (t.status !== StatusTentativa.PENDENTE) return false;
+            const idadeMs = Date.now() - new Date(t.criadoEm).getTime();
+            return idadeMs < EXPIRACAO_TENTATIVA_MS;
+        });
+
+        return !temPendenteAtivo;
+    }
+
+    estaVencido(): boolean {
+        return (
+            this.status !== StatusPagamento.PAGO &&
+            new Date() > this.dataVencimento
+        );
     }
 
     adicionarTentativa(tentativa: TentativaTransacao): void {
-        if (!this.podeReceberTentativa()) {
-            throw new PaymentAlreadyPaidException(this.id);
-        }
         this.tentativas = [...(this.tentativas ?? []), tentativa];
     }
 
     marcarComoPago(valorPago: number): void {
-        this.status   = StatusPagamento.PAGO;
+        this.status    = StatusPagamento.PAGO;
         this.valorPago = valorPago;
     }
 
     marcarComoNaoAutorizado(): void {
         this.status = StatusPagamento.NAO_AUTORIZADO;
+    }
+
+    marcarComoVencido(): void {
+        this.status = StatusPagamento.VENCIDO;
     }
 
     ultimaTentativaSucedeu(): boolean {

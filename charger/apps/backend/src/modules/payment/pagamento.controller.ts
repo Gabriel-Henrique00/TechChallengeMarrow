@@ -4,17 +4,13 @@ import { PagamentosService } from './pagamento.service';
 import { CriarPagamentoDto } from './dto/create-pagamento.dto';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
-import { TentativasTransacaoService } from '../payment-attempts/tentativa-transacao.service';
 
 @ApiTags('payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
 export class PagamentoController {
-    constructor(
-        private readonly pagamentosService:   PagamentosService,
-        private readonly tentativasService:   TentativasTransacaoService,
-    ) {}
+    constructor(private readonly pagamentosService: PagamentosService) {}
 
     @Post()
     @ApiOperation({ summary: 'Criar uma nova cobrança para um cliente' })
@@ -30,23 +26,16 @@ export class PagamentoController {
 
     @Get()
     @ApiOperation({ summary: 'Listar todos os pagamentos do usuário autenticado' })
-    @ApiResponse({ status: 200, description: 'Lista de pagamentos retornada com sucesso.' })
+    @ApiResponse({ status: 200, description: 'Lista retornada com sucesso.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     buscarTodos(@UsuarioAtual() usuario: { id: string }) {
         return this.pagamentosService.findAll(usuario.id);
     }
 
-    @Get('banks')
-    @ApiOperation({ summary: 'Listar bancos disponíveis para pagamento' })
-    @ApiResponse({ status: 200, description: 'Lista de bancos retornada com sucesso.' })
-    listarBancos() {
-        return this.tentativasService.getAvailableBanks();
-    }
-
     @Get(':id')
     @ApiOperation({ summary: 'Buscar detalhes de um pagamento pelo ID' })
     @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })
-    @ApiResponse({ status: 200, description: 'Dados do pagamento retornados com sucesso.' })
+    @ApiResponse({ status: 200, description: 'Dados retornados com sucesso.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
     buscarPorId(

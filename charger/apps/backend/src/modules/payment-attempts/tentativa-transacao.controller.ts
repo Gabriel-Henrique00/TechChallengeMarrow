@@ -12,17 +12,11 @@ import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 export class TentativasTransacaoController {
     constructor(private readonly tentativasService: TentativasTransacaoService) {}
 
-    @Get('banks')
-    @ApiOperation({ summary: 'Listar bancos disponíveis para pagamento via Pluggy' })
-    @ApiResponse({ status: 200, description: 'Lista de bancos retornada com sucesso.' })
-    listarBancos() {
-        return this.tentativasService.getAvailableBanks();
-    }
-
     @Post(':id/attempt')
-    @ApiOperation({ summary: 'Registrar uma nova tentativa de transação para um pagamento' })
+    @ApiOperation({ summary: 'Registrar uma nova tentativa de pagamento via Pluggy' })
     @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })
     @ApiResponse({ status: 201, description: 'Tentativa registrada com sucesso.' })
+    @ApiResponse({ status: 400, description: 'Pagamento vencido, já pago ou tentativa em andamento.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
     criar(
@@ -36,7 +30,7 @@ export class TentativasTransacaoController {
     @Get(':id/attempts')
     @ApiOperation({ summary: 'Listar todas as tentativas de um pagamento' })
     @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })
-    @ApiResponse({ status: 200, description: 'Histórico de tentativas retornado com sucesso.' })
+    @ApiResponse({ status: 200, description: 'Histórico retornado com sucesso.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     buscarPorPagamentoId(
         @Param('id') pagamentoId: string,

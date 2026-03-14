@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import type { ITentativasTransacaoRepository } from './tentativa-transacao.repository';
 import { TentativaTransacaoModelo } from '../models/tentativa-transacao.model';
 import { TentativaTransacao } from '../entities/tentativa-transacao.entity';
 import { TentativaTransacaoMapper } from '../mappers/tentativa-transacao.mapper';
+import { StatusTentativa } from '../../../shared/enums/status-tentativa.enum';
 
 @Injectable()
 export class TentativasTransacaoTypeOrmRepository implements ITentativasTransacaoRepository {
@@ -30,6 +31,16 @@ export class TentativasTransacaoTypeOrmRepository implements ITentativasTransaca
     async findByReferenciaExterna(referenciaExterna: string): Promise<TentativaTransacao | null> {
         const modelo = await this.repositorio.findOne({ where: { referenciaExterna } });
         return modelo ? TentativaTransacaoMapper.toDomain(modelo) : null;
+    }
+
+    async findPendentesAntesDe(dataLimite: Date): Promise<TentativaTransacao[]> {
+        const modelos = await this.repositorio.find({
+            where: {
+                status:    StatusTentativa.PENDENTE,
+                criadoEm:  LessThan(dataLimite),
+            },
+        });
+        return modelos.map(TentativaTransacaoMapper.toDomain);
     }
 
     async update(tentativa: TentativaTransacao): Promise<TentativaTransacao> {
