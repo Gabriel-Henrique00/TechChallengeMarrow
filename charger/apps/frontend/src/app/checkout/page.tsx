@@ -47,7 +47,7 @@ function CheckoutContent() {
         ])
             .then(([p, b]) => {
                 setPayment(p)
-                setBanks(b)
+                setBanks(b ?? [])
                 setStep(p.status === "PAGO" ? "ja-pago" : "detalhes")
             })
             .catch(() => setHasError(true))
@@ -85,14 +85,12 @@ function CheckoutContent() {
     return (
         <main className="mx-auto max-w-3xl px-4 py-8">
 
-            {/* Carregando */}
             {step === "carregando" && (
                 <div className="flex h-64 items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             )}
 
-            {/* Já pago */}
             {step === "ja-pago" && (
                 <Card className="text-center">
                     <CardContent className="py-12">
@@ -112,7 +110,6 @@ function CheckoutContent() {
                 </Card>
             )}
 
-            {/* Detalhes do pagamento */}
             {step === "detalhes" && payment && (
                 <div className="space-y-6">
                     <div className="text-center">
@@ -168,7 +165,6 @@ function CheckoutContent() {
                 </div>
             )}
 
-            {/* Seleção de banco */}
             {step === "selecionar-banco" && (
                 <div className="space-y-6">
                     <div className="text-center">
@@ -185,7 +181,7 @@ function CheckoutContent() {
                         </CardHeader>
                         <CardContent>
                             <div className="grid gap-3 sm:grid-cols-2">
-                                {banks.map((bank) => (
+                                {(banks ?? []).map((bank) => (
                                     <button
                                         key={bank.id ?? bank.code}
                                         onClick={() => setSelectedBank(bank)}
@@ -236,7 +232,6 @@ function CheckoutContent() {
                 </div>
             )}
 
-            {/* Processando */}
             {step === "processando" && (
                 <Card className="text-center">
                     <CardContent className="py-12">
@@ -251,7 +246,6 @@ function CheckoutContent() {
                 </Card>
             )}
 
-            {/* Concluído */}
             {step === "concluido" && (
                 <Card className="text-center">
                     <CardContent className="py-12">
@@ -285,7 +279,6 @@ function CheckoutContent() {
                 </Card>
             )}
 
-            {/* Erro */}
             {step === "erro" && (
                 <Card className="text-center">
                     <CardContent className="py-12">

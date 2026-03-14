@@ -28,13 +28,17 @@ export default function PagamentosPage() {
     const [statusFilter, setStatusFilter] = useState("all")
 
     useEffect(() => {
-        paymentService.findAll().then(setPayments).catch(console.error).finally(() => setIsLoading(false))
+        paymentService
+            .findAll()
+            .then((data) => setPayments(data ?? []))
+            .catch(console.error)
+            .finally(() => setIsLoading(false))
     }, [])
 
-    const filtered = payments.filter((p) => {
+    const filtered = (payments ?? []).filter((p) => {
         const matchSearch =
-            p.nome.toLowerCase().includes(search.toLowerCase())         ||
-            p.nomeCliente.toLowerCase().includes(search.toLowerCase())  ||
+            p.nome.toLowerCase().includes(search.toLowerCase())        ||
+            p.nomeCliente.toLowerCase().includes(search.toLowerCase()) ||
             p.id.toLowerCase().includes(search.toLowerCase())
         const matchStatus = statusFilter === "all" || p.status === statusFilter
         return matchSearch && matchStatus
@@ -127,9 +131,15 @@ export default function PagamentosPage() {
                                                             </p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="hidden md:table-cell">{payment.nomeCliente}</TableCell>
-                                                    <TableCell className="font-medium">{formatCurrency(payment.valor)}</TableCell>
-                                                    <TableCell><StatusBadge status={payment.status} size="sm" /></TableCell>
+                                                    <TableCell className="hidden md:table-cell">
+                                                        {payment.nomeCliente}
+                                                    </TableCell>
+                                                    <TableCell className="font-medium">
+                                                        {formatCurrency(payment.valor)}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <StatusBadge status={payment.status} size="sm" />
+                                                    </TableCell>
                                                     <TableCell className="hidden text-muted-foreground lg:table-cell">
                                                         {formatDate(payment.dataVencimento)}
                                                     </TableCell>

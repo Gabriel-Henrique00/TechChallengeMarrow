@@ -26,12 +26,15 @@ export default function ClientesPage() {
 
     useEffect(() => {
         Promise.all([clientService.findAll(), paymentService.findAll()])
-            .then(([c, p]) => { setClients(c); setPayments(p) })
+            .then(([c, p]) => {
+                setClients(c ?? [])
+                setPayments(p ?? [])
+            })
             .catch(console.error)
             .finally(() => setIsLoading(false))
     }, [])
 
-    const filtered = clients.filter(
+    const filtered = (clients ?? []).filter(
         (c) =>
             c.nome.toLowerCase().includes(search.toLowerCase())  ||
             c.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -39,7 +42,7 @@ export default function ClientesPage() {
     )
 
     const getClientStats = (clienteId: string) => {
-        const cp    = payments.filter((p) => p.clienteId === clienteId)
+        const cp    = (payments ?? []).filter((p) => p.clienteId === clienteId)
         const total = cp.reduce((s, p) => s + p.valor, 0)
         return { total, count: cp.length }
     }

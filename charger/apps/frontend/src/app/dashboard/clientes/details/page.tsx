@@ -41,7 +41,7 @@ function DetalheClienteContent() {
         Promise.all([clientService.findById(clienteId), paymentService.findAll()])
             .then(([c, allPayments]) => {
                 setClient(c)
-                setClientPayments(allPayments.filter((p) => p.clienteId === c.id))
+                setClientPayments((allPayments ?? []).filter((p) => p.clienteId === c.id))
             })
             .catch(() => setHasError(true))
             .finally(() => setIsLoading(false))
@@ -60,9 +60,10 @@ function DetalheClienteContent() {
         )
     }
 
-    const totalAmount   = clientPayments.reduce((s, p) => s + p.valor, 0)
-    const paidAmount    = clientPayments.filter((p) => p.status === "PAGO").reduce((s, p) => s + p.valor, 0)
-    const pendingAmount = clientPayments.filter((p) => p.status === "AGUARDANDO_PAGAMENTO").reduce((s, p) => s + p.valor, 0)
+    const safePayments  = clientPayments ?? []
+    const totalAmount   = safePayments.reduce((s, p) => s + p.valor, 0)
+    const paidAmount    = safePayments.filter((p) => p.status === "PAGO").reduce((s, p) => s + p.valor, 0)
+    const pendingAmount = safePayments.filter((p) => p.status === "AGUARDANDO_PAGAMENTO").reduce((s, p) => s + p.valor, 0)
 
     return (
         <>
@@ -89,7 +90,6 @@ function DetalheClienteContent() {
                         </div>
                     ) : (
                         <div className="grid gap-6 lg:grid-cols-3">
-                            {/* Informações do cliente */}
                             <Card className="lg:col-span-1">
                                 <CardHeader>
                                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -134,7 +134,6 @@ function DetalheClienteContent() {
                                 </CardContent>
                             </Card>
 
-                            {/* Estatísticas e histórico */}
                             <div className="space-y-6 lg:col-span-2">
                                 <div className="grid gap-4 sm:grid-cols-3">
                                     <Card>
@@ -182,11 +181,11 @@ function DetalheClienteContent() {
                                     <CardHeader>
                                         <CardTitle>Histórico de Cobranças</CardTitle>
                                         <CardDescription>
-                                            {clientPayments.length} cobrança(s) registrada(s) para este cliente
+                                            {safePayments.length} cobrança(s) registrada(s) para este cliente
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        {clientPayments.length === 0 ? (
+                                        {safePayments.length === 0 ? (
                                             <div className="flex h-24 flex-col items-center justify-center rounded-lg border border-dashed text-center">
                                                 <p className="text-muted-foreground">Nenhuma cobrança registrada</p>
                                                 <Button variant="link" asChild className="mt-1">
@@ -209,7 +208,7 @@ function DetalheClienteContent() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {clientPayments.map((payment) => (
+                                                    {safePayments.map((payment) => (
                                                         <TableRow key={payment.id}>
                                                             <TableCell className="font-medium">{payment.nome}</TableCell>
                                                             <TableCell>{formatCurrency(payment.valor)}</TableCell>

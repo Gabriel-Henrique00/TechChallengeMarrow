@@ -22,8 +22,8 @@ import type { Client } from "@/types"
 import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react"
 
 function CriarPagamentoContent() {
-    const router       = useRouter()
-    const searchParams = useSearchParams()
+    const router         = useRouter()
+    const searchParams   = useSearchParams()
     const clienteIdParam = searchParams.get("clienteId") ?? ""
 
     const [clients, setClients]           = useState<Client[]>([])
@@ -36,7 +36,10 @@ function CriarPagamentoContent() {
     })
 
     useEffect(() => {
-        clientService.findAll().then(setClients).catch(console.error)
+        clientService
+            .findAll()
+            .then((data) => setClients(data ?? []))
+            .catch(console.error)
     }, [])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -195,7 +198,7 @@ function CriarPagamentoContent() {
                                                 <SelectValue placeholder="Selecione um cliente" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {clients.map((c) => (
+                                                {(clients ?? []).map((c) => (
                                                     <SelectItem key={c.id} value={c.id}>
                                                         <div className="flex flex-col">
                                                             <span>{c.nome}</span>

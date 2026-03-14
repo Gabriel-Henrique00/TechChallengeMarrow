@@ -31,12 +31,12 @@ function DetalhePagamentoContent() {
     const router       = useRouter()
     const pagamentoId  = searchParams.get("id")
 
-    const [payment, setPayment]             = useState<Payment | null>(null)
-    const [attempts, setAttempts]           = useState<PaymentAttempt[]>([])
-    const [client, setClient]               = useState<Client | null>(null)
-    const [isLoading, setIsLoading]         = useState(true)
-    const [hasError, setHasError]           = useState(false)
-    const [copiedLink, setCopiedLink]       = useState(false)
+    const [payment, setPayment]           = useState<Payment | null>(null)
+    const [attempts, setAttempts]         = useState<PaymentAttempt[]>([])
+    const [client, setClient]             = useState<Client | null>(null)
+    const [isLoading, setIsLoading]       = useState(true)
+    const [hasError, setHasError]         = useState(false)
+    const [copiedLink, setCopiedLink]     = useState(false)
 
     useEffect(() => {
         if (!pagamentoId) { router.replace("/dashboard/pagamentos"); return }
@@ -48,7 +48,7 @@ function DetalhePagamentoContent() {
                     paymentAttemptService.findByPaymentId(pagamentoId),
                     clientService.findById(p.clienteId),
                 ])
-                setAttempts(att)
+                setAttempts(att ?? [])
                 setClient(cli)
             })
             .catch(() => setHasError(true))
@@ -68,8 +68,9 @@ function DetalhePagamentoContent() {
         )
     }
 
-    const isPaid      = payment?.status === "PAGO"
-    const checkoutUrl = typeof window !== "undefined"
+    const safeAttempts = attempts ?? []
+    const isPaid       = payment?.status === "PAGO"
+    const checkoutUrl  = typeof window !== "undefined"
         ? `${window.location.origin}/checkout?id=${pagamentoId}`
         : `/checkout?id=${pagamentoId}`
 
@@ -107,7 +108,6 @@ function DetalhePagamentoContent() {
                         </div>
                     ) : (
                         <div className="grid gap-6 lg:grid-cols-3">
-                            {/* Coluna principal */}
                             <div className="space-y-6 lg:col-span-2">
                                 <Card>
                                     <CardHeader>
@@ -169,7 +169,7 @@ function DetalhePagamentoContent() {
                                         <CardDescription>Registro de todas as tentativas de pagamento</CardDescription>
                                     </CardHeader>
                                     <CardContent>
-                                        {attempts.length === 0 ? (
+                                        {safeAttempts.length === 0 ? (
                                             <div className="flex h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
                                                 Nenhuma tentativa registrada
                                             </div>
@@ -184,7 +184,7 @@ function DetalhePagamentoContent() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {attempts.map((attempt) => (
+                                                    {safeAttempts.map((attempt) => (
                                                         <TableRow key={attempt.id}>
                                                             <TableCell className="text-sm">
                                                                 {formatDateTime(attempt.criadoEm)}
@@ -205,7 +205,6 @@ function DetalhePagamentoContent() {
                                 </Card>
                             </div>
 
-                            {/* Coluna lateral */}
                             <div className="space-y-6">
                                 <Card>
                                     <CardHeader>
