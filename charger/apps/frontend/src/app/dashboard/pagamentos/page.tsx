@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { AppHeader } from "@/components/layout/app-header"
 import {
@@ -19,7 +19,12 @@ import { StatusBadge } from "@/components/common/status-badge"
 import { paymentService } from "@/services/payment.service"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Payment } from "@/types"
-import { Plus, Search, Filter, AlertCircle, RefreshCw } from "lucide-react"
+import {
+    Plus, Search, Filter, AlertCircle, RefreshCw,
+    ChevronLeft, ChevronRight,
+} from "lucide-react"
+
+const ITENS_POR_PAGINA = 10
 
 export default function PagamentosPage() {
     const [payments, setPayments]         = useState<Payment[]>([])
@@ -27,6 +32,7 @@ export default function PagamentosPage() {
     const [error, setError]               = useState<string | null>(null)
     const [search, setSearch]             = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
+    const [pagina, setPagina]             = useState(1)
 
     const loadData = () => {
         setIsLoading(true)
@@ -43,14 +49,25 @@ export default function PagamentosPage() {
 
     useEffect(() => { loadData() }, [])
 
-    const filtered = (payments ?? []).filter((p) => {
-        const matchSearch =
-            p.nome.toLowerCase().includes(search.toLowerCase())        ||
-            p.nomeCliente.toLowerCase().includes(search.toLowerCase()) ||
-            p.id.toLowerCase().includes(search.toLowerCase())
-        const matchStatus = statusFilter === "all" || p.status === statusFilter
-        return matchSearch && matchStatus
-    })
+    // Volta para página 1 quando o filtro muda
+    useEffect(() => { setPagina(1) }, [search, statusFilter])
+
+    const filtered = useMemo(() =>
+            (payments ?? []).filter((p) => {
+                const matchSearch =
+                    p.nome.toLowerCase().includes(search.toLowerCase())        ||
+                    p.nomeCliente.toLowerCase().includes(search.toLowerCase()) ||
+                    p.id.toLowerCase().includes(search.toLowerCase())
+                const matchStatus = statusFilter === "all" || p.status === statusFilter
+                return matchSearch && matchStatus
+            }),
+        [payments, search, statusFilter]
+    )
+
+    const totalPaginas  = Math.max(1, Math.ceil(filtered.length / ITENS_POR_PAGINA))
+    const paginaAtual   = Math.min(pagina, totalPaginas)
+    const inicio        = (paginaAtual - 1) * ITENS_POR_PAGINA
+    const paginados     = filtered.slice(inicio, inicio + ITENS_POR_PAGINA)
 
     return (
         <>
@@ -116,7 +133,9 @@ export default function PagamentosPage() {
                         <CardHeader>
                             <CardTitle>Lista de Pagamentos</CardTitle>
                             <CardDescription>
-                                {isLoading ? "Carregando..." : `${filtered.length} pagamento(s) encontrado(s)`}
+                                {isLoading
+                                    ? "Carregando..."
+                                    : `${filtered.length} pagamento(s) encontrado(s)`}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -127,61 +146,94 @@ export default function PagamentosPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Nome</TableHead>
-                                            <TableHead className="hidden md:table-cell">Cliente</TableHead>
-                                            <TableHead>Valor</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="hidden lg:table-cell">Vencimento</TableHead>
-                                            <TableHead className="w-[100px]">
-                                                <span className="sr-only">Ações</span>
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filtered.length === 0 ? (
+                                <>
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                                    {error ? "Erro ao carregar dados." : "Nenhum pagamento encontrado."}
-                                                </TableCell>
+                                                <TableHead>Nome</TableHead>
+                                                <TableHead className="hidden md:table-cell">Cliente</TableHead>
+                                                <TableHead>Valor</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="hidden lg:table-cell">Vencimento</TableHead>
+                                                <TableHead className="w-[100px]">
+                                                    <span className="sr-only">Ações</span>
+                                                </TableHead>
                                             </TableRow>
-                                        ) : (
-                                            filtered.map((payment) => (
-                                                <TableRow key={payment.id}>
-                                                    <TableCell>
-                                                        <div>
-                                                            <p className="font-medium">{payment.nome}</p>
-                                                            <p className="text-sm text-muted-foreground line-clamp-1 md:hidden">
-                                                                {payment.nomeCliente}
-                                                            </p>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="hidden md:table-cell">
-                                                        {payment.nomeCliente}
-                                                    </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        {formatCurrency(payment.valor)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <StatusBadge status={payment.status} size="sm" />
-                                                    </TableCell>
-                                                    <TableCell className="hidden text-muted-foreground lg:table-cell">
-                                                        {formatDate(payment.dataVencimento)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Button variant="outline" size="sm" asChild>
-                                                            <Link href={`/dashboard/pagamentos/details?id=${payment.id}`}>
-                                                                Ver mais
-                                                            </Link>
-                                                        </Button>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {paginados.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                        {error ? "Erro ao carregar dados." : "Nenhum pagamento encontrado."}
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                            ) : (
+                                                paginados.map((payment) => (
+                                                    <TableRow key={payment.id}>
+                                                        <TableCell>
+                                                            <div>
+                                                                <p className="font-medium">{payment.nome}</p>
+                                                                <p className="text-sm text-muted-foreground line-clamp-1 md:hidden">
+                                                                    {payment.nomeCliente}
+                                                                </p>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="hidden md:table-cell">
+                                                            {payment.nomeCliente}
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">
+                                                            {formatCurrency(payment.valor)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <StatusBadge status={payment.status} size="sm" />
+                                                        </TableCell>
+                                                        <TableCell className="hidden text-muted-foreground lg:table-cell">
+                                                            {formatDate(payment.dataVencimento)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Button variant="outline" size="sm" asChild>
+                                                                <Link href={`/dashboard/pagamentos/details?id=${payment.id}`}>
+                                                                    Ver mais
+                                                                </Link>
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+
+                                    {/* Paginação */}
+                                    {totalPaginas > 1 && (
+                                        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                                            <p className="text-sm text-muted-foreground">
+                                                Página {paginaAtual} de {totalPaginas}
+                                                {" · "}
+                                                {filtered.length} resultado(s)
+                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                                                    disabled={paginaAtual === 1}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                    Anterior
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                                                    disabled={paginaAtual === totalPaginas}
+                                                >
+                                                    Próxima
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </CardContent>
                     </Card>

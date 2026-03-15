@@ -27,4 +27,8 @@ export const paymentService = {
     async create(payload: CreatePaymentPayload): Promise<Payment> {
         return apiClient.post<Payment>("/payments", payload)
     },
+
+    async cancel(pagamentoId: string): Promise<Payment> {
+        return apiClient.patch<Payment>(`/payments/${pagamentoId}/cancel`, {})
+    },
 }

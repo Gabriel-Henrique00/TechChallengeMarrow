@@ -24,7 +24,6 @@ async function request<T>(
 ): Promise<T> {
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        // Necessário para o ngrok não retornar página de aviso no lugar do JSON
         "ngrok-skip-browser-warning": "1",
         ...(options.headers as Record<string, string>),
     }
@@ -73,6 +72,13 @@ export const apiClient = {
         request<T>(
             path,
             { method: "PUT", body: JSON.stringify(body) },
+            requiresAuth
+        ),
+
+    patch: <T>(path: string, body: unknown, requiresAuth = true) =>
+        request<T>(
+            path,
+            { method: "PATCH", body: JSON.stringify(body) },
             requiresAuth
         ),
 

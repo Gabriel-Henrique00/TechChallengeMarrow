@@ -10,6 +10,11 @@ import {
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,7 +28,7 @@ import {
 import type { Payment, PaymentAttempt, Client } from "@/types"
 import {
     ArrowLeft, Copy, ExternalLink, User, Mail, Phone,
-    FileText, Calendar, CreditCard, RefreshCw, Loader2,
+    FileText, Calendar, CreditCard, RefreshCw, Loader2, XCircle,
 } from "lucide-react"
 
 const CINCO_MINUTOS_MS    = 5 * 60 * 1000
@@ -35,15 +40,17 @@ function DetalhePagamentoContent() {
     const router       = useRouter()
     const pagamentoId  = searchParams.get("id")
 
-    const [payment, setPayment]           = useState<Payment | null>(null)
-    const [attempts, setAttempts]         = useState<PaymentAttempt[]>([])
-    const [client, setClient]             = useState<Client | null>(null)
-    const [isLoading, setIsLoading]       = useState(true)
-    const [hasError, setHasError]         = useState(false)
-    const [copiedLink, setCopiedLink]     = useState(false)
+    const [payment, setPayment]                   = useState<Payment | null>(null)
+    const [attempts, setAttempts]                 = useState<PaymentAttempt[]>([])
+    const [client, setClient]                     = useState<Client | null>(null)
+    const [isLoading, setIsLoading]               = useState(true)
+    const [hasError, setHasError]                 = useState(false)
+    const [copiedLink, setCopiedLink]             = useState(false)
     const [criandoTentativa, setCriandoTentativa] = useState(false)
-    const [erroCriacao, setErroCriacao]   = useState<string | null>(null)
-    const [paymentUrl, setPaymentUrl]     = useState<string | null>(null)
+    const [erroCriacao, setErroCriacao]           = useState<string | null>(null)
+    const [paymentUrl, setPaymentUrl]             = useState<string | null>(null)
+    const [cancelando, setCancelando]             = useState(false)
+    const [erroCancelamento, setErroCancelamento] = useState<string | null>(null)
 
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -84,9 +91,7 @@ function DetalhePagamentoContent() {
                 const { payment: pAtual, attempts: attAtual } = await fetchData(id)
                 setPayment(pAtual)
                 setAttempts(attAtual)
-                if (!devePollar(pAtual, attAtual)) {
-                    stopPolling()
-                }
+                if (!devePollar(pAtual, attAtual)) stopPolling()
             } catch {
                 stopPolling()
             }
@@ -131,6 +136,10 @@ function DetalhePagamentoContent() {
         STATUS_COM_NOVA_TENTATIVA.includes(payment.status) &&
         new Date() < new Date(payment.dataVencimento)
 
+    const podeCancelar =
+        payment !== null &&
+        (payment.status === "AGUARDANDO_PAGAMENTO" || payment.status === "NAO_AUTORIZADO")
+
     const temTentativaPendente = safeAttempts.some((a) => {
         if (a.status !== "PENDENTE") return false
         const idadeMs = Date.now() - new Date(a.criadoEm).getTime()
@@ -152,7 +161,6 @@ function DetalhePagamentoContent() {
         setTimeout(() => setCopiedLink(false), 2000)
     }
 
-
     const handleNovaTentativa = async () => {
         if (!pagamentoId || criandoTentativa) return
         setCriandoTentativa(true)
@@ -161,19 +169,31 @@ function DetalhePagamentoContent() {
 
         try {
             const tentativa = await paymentAttemptService.create(pagamentoId)
-
             const { payment: p, attempts: att } = await fetchData(pagamentoId)
             setPayment(p)
             setAttempts(att)
             iniciarPolling(pagamentoId, p, att)
-
-            if (tentativa.paymentUrl) {
-                setPaymentUrl(tentativa.paymentUrl)
-            }
+            if (tentativa.paymentUrl) setPaymentUrl(tentativa.paymentUrl)
         } catch (err: any) {
             setErroCriacao(err?.message ?? "Erro ao criar tentativa. Tente novamente.")
         } finally {
             setCriandoTentativa(false)
+        }
+    }
+
+    const handleCancelar = async () => {
+        if (!pagamentoId || cancelando) return
+        setCancelando(true)
+        setErroCancelamento(null)
+
+        try {
+            const atualizado = await paymentService.cancel(pagamentoId)
+            setPayment(atualizado)
+            stopPolling()
+        } catch (err: any) {
+            setErroCancelamento(err?.message ?? "Erro ao cancelar pagamento.")
+        } finally {
+            setCancelando(false)
         }
     }
 
@@ -376,6 +396,13 @@ function DetalhePagamentoContent() {
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
+
+                                        {erroCancelamento && (
+                                            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                                {erroCancelamento}
+                                            </div>
+                                        )}
+
                                         {isPaid ? (
                                             // ── PAGO ─────────────────────────────────────
                                             <div className="rounded-lg bg-success/10 p-4 text-center">
@@ -401,7 +428,6 @@ function DetalhePagamentoContent() {
                                                         <div className="rounded-lg bg-warning/10 p-3 text-center text-sm text-warning">
                                                             Tentativa em andamento. Aguarde 5 minutos para tentar novamente.
                                                         </div>
-                                                        {/* Mantém os botões visíveis enquanto pendente */}
                                                         <Button
                                                             variant="outline"
                                                             className="w-full"
@@ -438,7 +464,7 @@ function DetalhePagamentoContent() {
                                                     </>
 
                                                 ) : (
-                                                    // ── JÁ HOUVE TENTATIVA: botão nova tentativa ─
+                                                    // ── JÁ HOUVE TENTATIVA: nova tentativa ─
                                                     <Button
                                                         className="w-full"
                                                         disabled={criandoTentativa}
@@ -456,6 +482,49 @@ function DetalhePagamentoContent() {
                                                             </>
                                                         )}
                                                     </Button>
+                                                )}
+
+                                                {/* Botão cancelar — disponível para AGUARDANDO e NAO_AUTORIZADO */}
+                                                {podeCancelar && !temTentativaPendente && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                className="w-full text-destructive hover:text-destructive hover:border-destructive/50"
+                                                                disabled={cancelando}
+                                                            >
+                                                                {cancelando ? (
+                                                                    <>
+                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                        Cancelando...
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <XCircle className="mr-2 h-4 w-4" />
+                                                                        Cancelar Cobrança
+                                                                    </>
+                                                                )}
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Cancelar cobrança?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Esta ação não pode ser desfeita. O pagamento será marcado
+                                                                    como cancelado e não poderá receber novas tentativas.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={handleCancelar}
+                                                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                                >
+                                                                    Sim, cancelar
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
                                                 )}
                                             </>
 
