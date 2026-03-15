@@ -62,16 +62,73 @@ function CriarPagamentoContent() {
         return parseFloat(formData.amount.replace(/\./g, "").replace(",", ".")) || 0
     }
 
+    const validate = (): string | null => {
+        const valor = getParsedAmount()
+
+        if (!formData.nome.trim()) {
+            return "O nome do pagamento é obrigatório."
+        }
+
+        if (formData.nome.trim().length < 3) {
+            return "O nome deve ter no mínimo 3 caracteres."
+        }
+
+        if (formData.nome.trim().length > 200) {
+            return "O nome deve ter no máximo 200 caracteres."
+        }
+
+        if (!formData.amount) {
+            return "Informe o valor do pagamento."
+        }
+
+        if (valor <= 0) {
+            return "O valor deve ser maior que zero."
+        }
+
+        if (valor < 0.01) {
+            return "O valor mínimo é R$ 0,01."
+        }
+
+        if (valor > 999999.99) {
+            return "O valor máximo é R$ 999.999,99."
+        }
+
+        if (!formData.dataVencimento) {
+            return "Informe a data de vencimento."
+        }
+
+        const dataVenc = new Date(formData.dataVencimento)
+        const hoje     = new Date()
+        hoje.setHours(0, 0, 0, 0)
+
+        if (dataVenc <= hoje) {
+            return "A data de vencimento deve ser uma data futura."
+        }
+
+        if (!formData.clienteId) {
+            return "Selecione um cliente para esta cobrança."
+        }
+
+        return null
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsSubmitting(true)
         setError("")
+
+        const validationError = validate()
+        if (validationError) {
+            setError(validationError)
+            return
+        }
+
+        setIsSubmitting(true)
 
         try {
             await paymentService.create({
                 clienteId:      formData.clienteId,
-                nome:           formData.nome,
-                descricao:      formData.descricao || undefined,
+                nome:           formData.nome.trim(),
+                descricao:      formData.descricao.trim() || undefined,
                 valor:          getParsedAmount(),
                 dataVencimento: new Date(formData.dataVencimento).toISOString(),
             })
@@ -79,8 +136,11 @@ function CriarPagamentoContent() {
             setTimeout(() => router.push("/dashboard/pagamentos"), 2000)
         } catch (err) {
             if (err instanceof ApiError) {
-                const msg = (err.data as { message?: string })?.message
-                setError(msg ?? "Erro ao criar cobrança. Verifique os dados.")
+                const raw = err.data as { message?: string | string[] }
+                const msg = Array.isArray(raw?.message)
+                    ? raw.message.join(", ")
+                    : (raw?.message ?? "Erro ao criar cobrança.")
+                setError(msg)
             } else {
                 setError("Erro inesperado. Tente novamente.")
             }
@@ -122,7 +182,9 @@ function CriarPagamentoContent() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Dados da Cobrança</CardTitle>
-                            <CardDescription>Preencha as informações para criar uma nova cobrança.</CardDescription>
+                            <CardDescription>
+                                Preencha as informações para criar uma nova cobrança.
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                             {error && (
@@ -142,9 +204,16 @@ function CriarPagamentoContent() {
                                             placeholder="Ex: Consultoria Março/2024"
                                             value={formData.nome}
                                             onChange={handleChange}
+                                            maxLength={200}
                                             required
                                         />
+                                        {formData.nome.length > 0 && (
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {formData.nome.length}/200 caracteres
+                                            </p>
+                                        )}
                                     </Field>
+
                                     <Field>
                                         <FieldLabel htmlFor="descricao">Descrição</FieldLabel>
                                         <Textarea
@@ -153,9 +222,16 @@ function CriarPagamentoContent() {
                                             placeholder="Detalhes desta cobrança..."
                                             value={formData.descricao}
                                             onChange={handleChange}
+                                            maxLength={500}
                                             rows={3}
                                         />
+                                        {formData.descricao.length > 0 && (
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {formData.descricao.length}/500 caracteres
+                                            </p>
+                                        )}
                                     </Field>
+
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <Field>
                                             <FieldLabel htmlFor="amount">Valor (R$) *</FieldLabel>
@@ -172,7 +248,11 @@ function CriarPagamentoContent() {
                                                 }
                                                 required
                                             />
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Mínimo: R$ 0,01 · Máximo: R$ 999.999,99
+                                            </p>
                                         </Field>
+
                                         <Field>
                                             <FieldLabel htmlFor="dataVencimento">Data de Vencimento *</FieldLabel>
                                             <Input
@@ -180,11 +260,16 @@ function CriarPagamentoContent() {
                                                 name="dataVencimento"
                                                 type="date"
                                                 value={formData.dataVencimento}
+                                                min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
                                                 onChange={handleChange}
                                                 required
                                             />
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Deve ser uma data futura
+                                            </p>
                                         </Field>
                                     </div>
+
                                     <Field>
                                         <FieldLabel>Cliente (Pagador) *</FieldLabel>
                                         <Select
@@ -198,14 +283,20 @@ function CriarPagamentoContent() {
                                                 <SelectValue placeholder="Selecione um cliente" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {(clients ?? []).map((c) => (
-                                                    <SelectItem key={c.id} value={c.id}>
-                                                        <div className="flex flex-col">
-                                                            <span>{c.nome}</span>
-                                                            <span className="text-xs text-muted-foreground">{c.email}</span>
-                                                        </div>
+                                                {clients.length === 0 ? (
+                                                    <SelectItem value="none" disabled>
+                                                        Nenhum cliente cadastrado
                                                     </SelectItem>
-                                                ))}
+                                                ) : (
+                                                    clients.map((c) => (
+                                                        <SelectItem key={c.id} value={c.id}>
+                                                            <div className="flex flex-col">
+                                                                <span>{c.nome}</span>
+                                                                <span className="text-xs text-muted-foreground">{c.email}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))
+                                                )}
                                             </SelectContent>
                                         </Select>
                                         <p className="mt-1 text-sm text-muted-foreground">
@@ -220,7 +311,7 @@ function CriarPagamentoContent() {
                                     </Field>
                                 </FieldGroup>
 
-                                {formData.amount && (
+                                {formData.amount && getParsedAmount() > 0 && (
                                     <div className="mt-6 rounded-lg bg-muted p-4">
                                         <p className="text-sm text-muted-foreground">Valor a ser cobrado:</p>
                                         <p className="text-2xl font-bold">{formatCurrency(getParsedAmount())}</p>

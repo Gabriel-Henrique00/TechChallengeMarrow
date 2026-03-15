@@ -42,37 +42,55 @@ export default function CadastroPage() {
     }
 
     const passwordRequirements = [
-        { label: "Mínimo 6 caracteres",          met: formData.senha.length >= 6        },
-        { label: "Pelo menos uma letra maiúscula", met: /[A-Z]/.test(formData.senha)     },
-        { label: "Pelo menos um número",           met: /[0-9]/.test(formData.senha)     },
+        { label: "Mínimo 8 caracteres",            met: formData.senha.length >= 8           },
+        { label: "Pelo menos uma letra maiúscula", met: /[A-Z]/.test(formData.senha)         },
+        { label: "Pelo menos uma letra minúscula", met: /[a-z]/.test(formData.senha)         },
+        { label: "Pelo menos um número",           met: /[0-9]/.test(formData.senha)         },
+        { label: "Máximo 72 caracteres",           met: formData.senha.length <= 72          },
     ]
 
     const passwordsMatch     = formData.senha === formData.confirmSenha && formData.confirmSenha.length > 0
     const allRequirementsMet = passwordRequirements.every((r) => r.met)
+
     const canSubmit =
-        formData.nome && formData.email && formData.nomeEmpresa &&
-        formData.cnpj.length === 18 && allRequirementsMet && passwordsMatch && acceptedTerms
+        formData.nome.trim().length >= 2        &&
+        formData.email.trim().length > 0        &&
+        formData.nomeEmpresa.trim().length >= 2 &&
+        formData.cnpj.length === 18             &&
+        allRequirementsMet                      &&
+        passwordsMatch                          &&
+        acceptedTerms
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!canSubmit) return
+
         setIsLoading(true)
         setError("")
 
         try {
             await authService.register({
-                nome:        formData.nome,
-                email:       formData.email,
+                nome:        formData.nome.trim(),
+                email:       formData.email.trim(),
                 senha:       formData.senha,
-                nomeEmpresa: formData.nomeEmpresa,
+                nomeEmpresa: formData.nomeEmpresa.trim(),
                 cnpj:        formData.cnpj.replace(/\D/g, ""),
             })
             router.push("/login")
         } catch (err) {
-            if (err instanceof ApiError && err.status === 409) {
-                setError("E-mail ou CNPJ já está em uso.")
+            if (err instanceof ApiError) {
+                const raw = err.data as { message?: string | string[] }
+                const msg = Array.isArray(raw?.message)
+                    ? raw.message.join(", ")
+                    : (raw?.message ?? "Erro ao criar conta.")
+
+                if (err.status === 409) {
+                    setError("E-mail ou CNPJ já está em uso.")
+                } else {
+                    setError(msg)
+                }
             } else {
-                setError("Erro ao criar conta. Tente novamente.")
+                setError("Erro inesperado. Tente novamente.")
             }
             setIsLoading(false)
         }
@@ -107,20 +125,47 @@ export default function CadastroPage() {
                         <form onSubmit={handleSubmit}>
                             <FieldGroup>
                                 <Field>
-                                    <FieldLabel htmlFor="nome">Nome completo</FieldLabel>
-                                    <Input id="nome" name="nome" placeholder="Seu nome" value={formData.nome} onChange={handleChange} required />
+                                    <FieldLabel htmlFor="nome">Nome completo *</FieldLabel>
+                                    <Input
+                                        id="nome"
+                                        name="nome"
+                                        placeholder="Seu nome"
+                                        value={formData.nome}
+                                        onChange={handleChange}
+                                        maxLength={150}
+                                        required
+                                    />
                                 </Field>
+
                                 <Field>
-                                    <FieldLabel htmlFor="email">E-mail</FieldLabel>
-                                    <Input id="email" name="email" type="email" placeholder="seu@email.com" value={formData.email} onChange={handleChange} required />
+                                    <FieldLabel htmlFor="email">E-mail *</FieldLabel>
+                                    <Input
+                                        id="email"
+                                        name="email"
+                                        type="email"
+                                        placeholder="seu@email.com"
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        maxLength={200}
+                                        required
+                                    />
                                 </Field>
+
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <Field>
-                                        <FieldLabel htmlFor="nomeEmpresa">Nome da Empresa</FieldLabel>
-                                        <Input id="nomeEmpresa" name="nomeEmpresa" placeholder="Empresa Ltda" value={formData.nomeEmpresa} onChange={handleChange} required />
+                                        <FieldLabel htmlFor="nomeEmpresa">Nome da Empresa *</FieldLabel>
+                                        <Input
+                                            id="nomeEmpresa"
+                                            name="nomeEmpresa"
+                                            placeholder="Empresa Ltda"
+                                            value={formData.nomeEmpresa}
+                                            onChange={handleChange}
+                                            maxLength={200}
+                                            required
+                                        />
                                     </Field>
                                     <Field>
-                                        <FieldLabel htmlFor="cnpj">CNPJ</FieldLabel>
+                                        <FieldLabel htmlFor="cnpj">CNPJ *</FieldLabel>
                                         <Input
                                             id="cnpj"
                                             name="cnpj"
@@ -133,8 +178,9 @@ export default function CadastroPage() {
                                         />
                                     </Field>
                                 </div>
+
                                 <Field>
-                                    <FieldLabel htmlFor="senha">Senha</FieldLabel>
+                                    <FieldLabel htmlFor="senha">Senha *</FieldLabel>
                                     <div className="relative">
                                         <Input
                                             id="senha"
@@ -143,6 +189,7 @@ export default function CadastroPage() {
                                             placeholder="••••••••"
                                             value={formData.senha}
                                             onChange={handleChange}
+                                            maxLength={72}
                                             required
                                         />
                                         <button
@@ -157,7 +204,11 @@ export default function CadastroPage() {
                                         <div className="mt-2 space-y-1">
                                             {passwordRequirements.map((req, i) => (
                                                 <div key={i} className="flex items-center gap-2 text-xs">
-                                                    <div className={`flex h-4 w-4 items-center justify-center rounded-full ${req.met ? "bg-success text-success-foreground" : "bg-muted"}`}>
+                                                    <div
+                                                        className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                                                            req.met ? "bg-success text-success-foreground" : "bg-muted"
+                                                        }`}
+                                                    >
                                                         {req.met && <Check className="h-3 w-3" />}
                                                     </div>
                                                     <span className={req.met ? "text-success" : "text-muted-foreground"}>
@@ -168,8 +219,9 @@ export default function CadastroPage() {
                                         </div>
                                     )}
                                 </Field>
+
                                 <Field>
-                                    <FieldLabel htmlFor="confirmSenha">Confirmar senha</FieldLabel>
+                                    <FieldLabel htmlFor="confirmSenha">Confirmar senha *</FieldLabel>
                                     <div className="relative">
                                         <Input
                                             id="confirmSenha"
@@ -178,6 +230,7 @@ export default function CadastroPage() {
                                             placeholder="••••••••"
                                             value={formData.confirmSenha}
                                             onChange={handleChange}
+                                            maxLength={72}
                                             required
                                         />
                                         <button
@@ -190,7 +243,11 @@ export default function CadastroPage() {
                                     </div>
                                     {formData.confirmSenha && (
                                         <div className="mt-2 flex items-center gap-2 text-xs">
-                                            <div className={`flex h-4 w-4 items-center justify-center rounded-full ${passwordsMatch ? "bg-success text-success-foreground" : "bg-destructive"}`}>
+                                            <div
+                                                className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                                                    passwordsMatch ? "bg-success text-success-foreground" : "bg-destructive"
+                                                }`}
+                                            >
                                                 {passwordsMatch && <Check className="h-3 w-3" />}
                                             </div>
                                             <span className={passwordsMatch ? "text-success" : "text-destructive"}>
@@ -199,8 +256,13 @@ export default function CadastroPage() {
                                         </div>
                                     )}
                                 </Field>
+
                                 <div className="flex items-start gap-2">
-                                    <Checkbox id="terms" checked={acceptedTerms} onCheckedChange={(v) => setAcceptedTerms(v as boolean)} />
+                                    <Checkbox
+                                        id="terms"
+                                        checked={acceptedTerms}
+                                        onCheckedChange={(v) => setAcceptedTerms(v as boolean)}
+                                    />
                                     <label htmlFor="terms" className="text-sm leading-tight text-muted-foreground">
                                         Li e aceito os{" "}
                                         <Link href="#" className="text-primary hover:underline">Termos de Uso</Link>
@@ -210,7 +272,11 @@ export default function CadastroPage() {
                                 </div>
                             </FieldGroup>
 
-                            <Button type="submit" className="mt-6 w-full" disabled={!canSubmit || isLoading}>
+                            <Button
+                                type="submit"
+                                className="mt-6 w-full"
+                                disabled={!canSubmit || isLoading}
+                            >
                                 {isLoading ? "Criando conta..." : "Criar conta"}
                             </Button>
                         </form>
