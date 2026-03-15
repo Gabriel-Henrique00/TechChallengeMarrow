@@ -53,7 +53,7 @@ describe('TentativasTransacaoService', () => {
             await expect(makeService().createPublico('pag-x')).rejects.toThrow(ResourceNotFoundException);
         });
 
-        it('cria tentativa com sucesso e retorna paymentUrl', async () => {
+        it('cria tentativa com sucesso, retorna paymentUrl e salva pagamento como AGUARDANDO', async () => {
             mockPagRepo.findByIdWithAttemptsInternal.mockResolvedValue({});
             mockManager.findOne.mockResolvedValue(makePagamentoModelo());
             mockManager.create.mockReturnValue(makeTentativaModelo());
@@ -64,6 +64,24 @@ describe('TentativasTransacaoService', () => {
             });
             const result = await makeService().createPublico('pag-1');
             expect(result.paymentUrl).toBe('https://pay.pluggy.ai/1');
+            expect(mockManager.save).toHaveBeenCalledTimes(2);
+        });
+
+        it('volta status do pagamento para AGUARDANDO_PAGAMENTO ao criar tentativa PENDENTE', async () => {
+            mockPagRepo.findByIdWithAttemptsInternal.mockResolvedValue({});
+            // Pagamento estava NAO_AUTORIZADO
+            mockManager.findOne.mockResolvedValue(
+                makePagamentoModelo({ status: StatusPagamento.NAO_AUTORIZADO }),
+            );
+            mockManager.create.mockReturnValue(makeTentativaModelo());
+            mockManager.save.mockResolvedValue(makeTentativaModelo());
+            mockPayProvider.initiatePayment.mockResolvedValue({
+                status: StatusTentativa.PENDENTE, referenciaExterna: 'ref-1',
+                motivoFalha: null, paymentUrl: 'https://pay.pluggy.ai/1',
+            });
+            await makeService().createPublico('pag-1');
+            const segundoSave = mockManager.save.mock.calls[1];
+            expect(segundoSave[1].status).toBe(StatusPagamento.AGUARDANDO_PAGAMENTO);
         });
     });
 
@@ -163,6 +181,22 @@ describe('TentativasTransacaoService', () => {
             const result = await makeService().createPublico('pag-1');
             expect(result.status).toBe(StatusTentativa.FALHA);
             expect(mockManager.save).toHaveBeenCalledTimes(2);
+        });
+
+        it('marca NAO_AUTORIZADO no pagamento quando provedor retorna FALHA', async () => {
+            const tentativaFalha = { ...makeTentativaModelo(), status: StatusTentativa.FALHA };
+            mockManager.findOne.mockResolvedValue(makePagamentoModelo());
+            mockManager.create.mockReturnValue(tentativaFalha);
+            mockManager.save
+                .mockResolvedValueOnce(tentativaFalha)
+                .mockResolvedValueOnce({});
+            mockPayProvider.initiatePayment.mockResolvedValue({
+                status: StatusTentativa.FALHA, referenciaExterna: null,
+                motivoFalha: 'Recusado', paymentUrl: null,
+            });
+            await makeService().createPublico('pag-1');
+            const segundoSave = mockManager.save.mock.calls[1];
+            expect(segundoSave[1].status).toBe(StatusPagamento.NAO_AUTORIZADO);
         });
 
         it('usa nome como descricao quando descricao é null', async () => {

@@ -131,6 +131,14 @@ describe('Pagamento entity', () => {
     });
   });
 
+  describe('marcarComoAguardando()', () => {
+    it('define status AGUARDANDO_PAGAMENTO', () => {
+      const p = makePagamento({ status: StatusPagamento.NAO_AUTORIZADO });
+      p.marcarComoAguardando();
+      expect(p.status).toBe(StatusPagamento.AGUARDANDO_PAGAMENTO);
+    });
+  });
+
   describe('marcarComoPago()', () => {
     it('define status PAGO e valorPago', () => {
       const p = makePagamento();

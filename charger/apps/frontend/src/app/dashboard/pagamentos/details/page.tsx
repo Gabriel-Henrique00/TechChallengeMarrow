@@ -23,15 +23,11 @@ import {
 import type { Payment, PaymentAttempt, Client } from "@/types"
 import {
     ArrowLeft, Copy, ExternalLink, User, Mail, Phone,
-    FileText, Calendar, CreditCard, RefreshCw,
+    FileText, Calendar, CreditCard, RefreshCw, Loader2,
 } from "lucide-react"
 
-// Tempo real da regra de negócio: 5 minutos
-const CINCO_MINUTOS_MS = 5 * 60 * 1000
-
-// Intervalo de polling enquanto há tentativa pendente ou pagamento recém-confirmado
+const CINCO_MINUTOS_MS    = 5 * 60 * 1000
 const POLLING_INTERVAL_MS = 5_000
-
 const STATUS_COM_NOVA_TENTATIVA = ["AGUARDANDO_PAGAMENTO", "NAO_AUTORIZADO"]
 
 function DetalhePagamentoContent() {
@@ -39,12 +35,15 @@ function DetalhePagamentoContent() {
     const router       = useRouter()
     const pagamentoId  = searchParams.get("id")
 
-    const [payment, setPayment]       = useState<Payment | null>(null)
-    const [attempts, setAttempts]     = useState<PaymentAttempt[]>([])
-    const [client, setClient]         = useState<Client | null>(null)
-    const [isLoading, setIsLoading]   = useState(true)
-    const [hasError, setHasError]     = useState(false)
-    const [copiedLink, setCopiedLink] = useState(false)
+    const [payment, setPayment]           = useState<Payment | null>(null)
+    const [attempts, setAttempts]         = useState<PaymentAttempt[]>([])
+    const [client, setClient]             = useState<Client | null>(null)
+    const [isLoading, setIsLoading]       = useState(true)
+    const [hasError, setHasError]         = useState(false)
+    const [copiedLink, setCopiedLink]     = useState(false)
+    const [criandoTentativa, setCriandoTentativa] = useState(false)
+    const [erroCriacao, setErroCriacao]   = useState<string | null>(null)
+    const [paymentUrl, setPaymentUrl]     = useState<string | null>(null)
 
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -55,7 +54,6 @@ function DetalhePagamentoContent() {
         }
     }, [])
 
-    // Busca pagamento + tentativas e retorna os dados atualizados
     const fetchData = useCallback(async (id: string) => {
         const [p, att] = await Promise.all([
             paymentService.findById(id),
@@ -64,14 +62,10 @@ function DetalhePagamentoContent() {
         return { payment: p, attempts: att ?? [] }
     }, [])
 
-    // Decide se deve continuar fazendo polling:
-    // - enquanto houver tentativa PENDENTE recente (aguardando webhook)
-    // - para garantir que o status PAGO reflita imediatamente após confirmação
     const devePollar = useCallback(
         (p: Payment | null, att: PaymentAttempt[]) => {
             if (!p) return false
             if (p.status === "PAGO") return false
-
             return att.some((a) => {
                 if (a.status !== "PENDENTE") return false
                 const idadeMs = Date.now() - new Date(a.criadoEm).getTime()
@@ -81,40 +75,40 @@ function DetalhePagamentoContent() {
         [],
     )
 
+    const iniciarPolling = useCallback((id: string, p: Payment, att: PaymentAttempt[]) => {
+        stopPolling()
+        if (!devePollar(p, att)) return
+
+        pollingRef.current = setInterval(async () => {
+            try {
+                const { payment: pAtual, attempts: attAtual } = await fetchData(id)
+                setPayment(pAtual)
+                setAttempts(attAtual)
+                if (!devePollar(pAtual, attAtual)) {
+                    stopPolling()
+                }
+            } catch {
+                stopPolling()
+            }
+        }, POLLING_INTERVAL_MS)
+    }, [stopPolling, devePollar, fetchData])
+
     useEffect(() => {
         if (!pagamentoId) { router.replace("/dashboard/pagamentos"); return }
 
-        // Carga inicial — também busca o cliente (feito apenas uma vez)
         fetchData(pagamentoId)
             .then(async ({ payment: p, attempts: att }) => {
                 setPayment(p)
                 setAttempts(att)
                 const cli = await clientService.findById(p.clienteId)
                 setClient(cli)
-
-                // Inicia polling se houver tentativa pendente
-                if (devePollar(p, att)) {
-                    pollingRef.current = setInterval(async () => {
-                        try {
-                            const { payment: pAtual, attempts: attAtual } = await fetchData(pagamentoId)
-                            setPayment(pAtual)
-                            setAttempts(attAtual)
-
-                            // Para o polling quando não há mais pendentes ou pagamento confirmado
-                            if (!devePollar(pAtual, attAtual)) {
-                                stopPolling()
-                            }
-                        } catch {
-                            stopPolling()
-                        }
-                    }, POLLING_INTERVAL_MS)
-                }
+                iniciarPolling(pagamentoId, p, att)
             })
             .catch(() => setHasError(true))
             .finally(() => setIsLoading(false))
 
         return () => stopPolling()
-    }, [pagamentoId, router, fetchData, devePollar, stopPolling])
+    }, [pagamentoId, router, fetchData, iniciarPolling, stopPolling])
 
     if (hasError) {
         return (
@@ -130,7 +124,6 @@ function DetalhePagamentoContent() {
     }
 
     const safeAttempts = attempts ?? []
-
     const isPaid       = payment?.status === "PAGO"
 
     const podeNovaTentativa =
@@ -144,14 +137,44 @@ function DetalhePagamentoContent() {
         return idadeMs < CINCO_MINUTOS_MS
     })
 
+    const tentativasFinalizadas = safeAttempts.filter((a) => a.status !== "PENDENTE")
+    const nenhumaTentativa      = tentativasFinalizadas.length === 0 && !temTentativaPendente
+
     const checkoutUrl = typeof window !== "undefined"
         ? `${window.location.origin}/checkout?id=${pagamentoId}`
         : `/checkout?id=${pagamentoId}`
 
+    const linkParaCopiar = paymentUrl ?? checkoutUrl
+
     const handleCopyLink = () => {
-        navigator.clipboard.writeText(checkoutUrl)
+        navigator.clipboard.writeText(linkParaCopiar)
         setCopiedLink(true)
         setTimeout(() => setCopiedLink(false), 2000)
+    }
+
+
+    const handleNovaTentativa = async () => {
+        if (!pagamentoId || criandoTentativa) return
+        setCriandoTentativa(true)
+        setErroCriacao(null)
+        setPaymentUrl(null)
+
+        try {
+            const tentativa = await paymentAttemptService.create(pagamentoId)
+
+            const { payment: p, attempts: att } = await fetchData(pagamentoId)
+            setPayment(p)
+            setAttempts(att)
+            iniciarPolling(pagamentoId, p, att)
+
+            if (tentativa.paymentUrl) {
+                setPaymentUrl(tentativa.paymentUrl)
+            }
+        } catch (err: any) {
+            setErroCriacao(err?.message ?? "Erro ao criar tentativa. Tente novamente.")
+        } finally {
+            setCriandoTentativa(false)
+        }
     }
 
     return (
@@ -354,6 +377,7 @@ function DetalhePagamentoContent() {
                                     </CardHeader>
                                     <CardContent className="space-y-3">
                                         {isPaid ? (
+                                            // ── PAGO ─────────────────────────────────────
                                             <div className="rounded-lg bg-success/10 p-4 text-center">
                                                 <p className="font-medium text-success">
                                                     Pagamento realizado com sucesso
@@ -362,38 +386,81 @@ function DetalhePagamentoContent() {
                                                     {formatCurrency(payment?.valorPago ?? 0)} recebido
                                                 </p>
                                             </div>
+
                                         ) : podeNovaTentativa ? (
                                             <>
-                                                {temTentativaPendente ? (
-                                                    <div className="rounded-lg bg-warning/10 p-3 text-center text-sm text-warning">
-                                                        Tentativa em andamento. Aguarde 5 minutos para tentar novamente.
+                                                {erroCriacao && (
+                                                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                                        {erroCriacao}
                                                     </div>
-                                                ) : (
-                                                    <Button className="w-full" asChild>
-                                                        <Link href={`/checkout?id=${pagamentoId}`}>
-                                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                                            Nova Tentativa de Pagamento
-                                                        </Link>
-                                                    </Button>
                                                 )}
 
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-full"
-                                                    onClick={handleCopyLink}
-                                                >
-                                                    <Copy className="mr-2 h-4 w-4" />
-                                                    {copiedLink ? "Link Copiado!" : "Copiar Link"}
-                                                </Button>
+                                                {temTentativaPendente ? (
+                                                    // ── TENTATIVA EM ANDAMENTO ────────────
+                                                    <>
+                                                        <div className="rounded-lg bg-warning/10 p-3 text-center text-sm text-warning">
+                                                            Tentativa em andamento. Aguarde 5 minutos para tentar novamente.
+                                                        </div>
+                                                        {/* Mantém os botões visíveis enquanto pendente */}
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full"
+                                                            onClick={handleCopyLink}
+                                                        >
+                                                            <Copy className="mr-2 h-4 w-4" />
+                                                            {copiedLink ? "Link Copiado!" : "Copiar Link"}
+                                                        </Button>
+                                                        <Button variant="outline" className="w-full" asChild>
+                                                            <a href={linkParaCopiar} target="_blank" rel="noreferrer">
+                                                                <ExternalLink className="mr-2 h-4 w-4" />
+                                                                Abrir página de pagamento
+                                                            </a>
+                                                        </Button>
+                                                    </>
 
-                                                <Button variant="outline" className="w-full" asChild>
-                                                    <Link href={`/checkout?id=${pagamentoId}`} target="_blank">
-                                                        <ExternalLink className="mr-2 h-4 w-4" />
-                                                        Abrir página de pagamento
-                                                    </Link>
-                                                </Button>
+                                                ) : nenhumaTentativa ? (
+                                                    // ── PRIMEIRA VEZ: só links ────────────
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full"
+                                                            onClick={handleCopyLink}
+                                                        >
+                                                            <Copy className="mr-2 h-4 w-4" />
+                                                            {copiedLink ? "Link Copiado!" : "Copiar Link"}
+                                                        </Button>
+                                                        <Button variant="outline" className="w-full" asChild>
+                                                            <a href={linkParaCopiar} target="_blank" rel="noreferrer">
+                                                                <ExternalLink className="mr-2 h-4 w-4" />
+                                                                Abrir página de pagamento
+                                                            </a>
+                                                        </Button>
+                                                    </>
+
+                                                ) : (
+                                                    // ── JÁ HOUVE TENTATIVA: botão nova tentativa ─
+                                                    <Button
+                                                        className="w-full"
+                                                        disabled={criandoTentativa}
+                                                        onClick={handleNovaTentativa}
+                                                    >
+                                                        {criandoTentativa ? (
+                                                            <>
+                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                Gerando link...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <RefreshCw className="mr-2 h-4 w-4" />
+                                                                Nova Tentativa de Pagamento
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                )}
                                             </>
+
                                         ) : (
+                                            // ── BLOQUEADO (vencido, cancelado) ───────────
                                             <div className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
                                                 {payment?.status === "VENCIDO"
                                                     ? "Pagamento vencido. Não é possível realizar novas tentativas."

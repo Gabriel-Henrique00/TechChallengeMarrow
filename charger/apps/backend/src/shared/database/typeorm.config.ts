@@ -11,4 +11,5 @@ export const typeOrmConfig = (config: ConfigService): TypeOrmModuleOptions => ({
     entities:    [__dirname + '/../../**/*.model{.ts,.js}'],
     synchronize: true,
     logging:     false,
+    timezone:    'Z',
 });

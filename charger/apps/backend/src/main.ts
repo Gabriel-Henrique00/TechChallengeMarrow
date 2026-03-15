@@ -4,6 +4,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './shared/filters/http-exception.filter';
 
+process.env.TZ = 'UTC';
+
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 

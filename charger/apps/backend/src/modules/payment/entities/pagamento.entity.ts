@@ -58,6 +58,10 @@ export class Pagamento {
         this.valorPago = valorPago;
     }
 
+    marcarComoAguardando(): void {
+        this.status = StatusPagamento.AGUARDANDO_PAGAMENTO;
+    }
+
     marcarComoNaoAutorizado(): void {
         this.status = StatusPagamento.NAO_AUTORIZADO;
     }

@@ -19,6 +19,7 @@ export class TentativaTransacaoMapper {
 
     static toModel(tentativa: TentativaTransacao): Partial<TentativaTransacaoModelo> {
         return {
+            id:                tentativa.id,
             pagamentoId:       tentativa.pagamentoId,
             status:            tentativa.status,
             referenciaExterna: tentativa.referenciaExterna,

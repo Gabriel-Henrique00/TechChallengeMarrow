@@ -46,6 +46,9 @@ export class TentativasTransacaoService {
 
         const tentativas = await this.tentativasRepository.findByPaymentId(pagamentoId);
 
+        // Deduplica tentativas com status SUCESSO no backend: mantém somente a mais
+        // antiga, que representa o evento real de confirmação. As demais são
+        // duplicatas disparadas pela Pluggy para o mesmo webhook.
         const jaViuSucesso = new Set<string>();
         const deduplicadas = tentativas.filter((t) => {
             if (t.status !== StatusTentativa.SUCESSO) return true;
@@ -106,7 +109,10 @@ export class TentativasTransacaoService {
             const tentativaSalva = await manager.save(TentativaTransacaoModelo, tentativaModelo);
             const tentativa      = TTMapper.toDomain(tentativaSalva);
 
-            if (resultado.status === StatusTentativa.FALHA) {
+            if (resultado.status === StatusTentativa.PENDENTE) {
+                pagamento.marcarComoAguardando();
+                await manager.save(PagamentoModelo, PagamentoMapper.toModel(pagamento));
+            } else if (resultado.status === StatusTentativa.FALHA) {
                 pagamento.adicionarTentativa(tentativa);
                 pagamento.marcarComoNaoAutorizado();
                 await manager.save(PagamentoModelo, PagamentoMapper.toModel(pagamento));
