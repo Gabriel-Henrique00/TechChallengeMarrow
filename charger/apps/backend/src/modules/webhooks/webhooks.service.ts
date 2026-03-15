@@ -48,8 +48,6 @@ export class WebhooksService {
             return;
         }
 
-        // Encadeia o processamento desse paymentRequestId — o próximo evento
-        // só começa após o anterior terminar, eliminando a race condition.
         const anterior = this.processando.get(paymentRequestId) ?? Promise.resolve();
         const atual = anterior.then(() =>
             this.processarComLock(paymentRequestId, event, statusInterno!, payload),
@@ -83,8 +81,27 @@ export class WebhooksService {
             return;
         }
 
+        if (tentativa.status === statusInterno && statusInterno === StatusTentativa.SUCESSO) {
+            this.logger.log(`Evento duplicado ignorado: tentativa já está ${statusInterno}`);
+            return;
+        }
+
+
+        const historicoAnterior = tentativa.respostaWebhook?.historico ?? [];
+        const novoEvento = {
+            event,
+            statusAnterior: tentativa.status,
+            statusNovo:     statusInterno,
+            recebidoEm:     new Date().toISOString(),
+            payload,
+        };
+
         tentativa.status          = statusInterno;
-        tentativa.respostaWebhook = payload;
+        tentativa.respostaWebhook = {
+            ultimoEvento: payload,
+            historico:    [...historicoAnterior, novoEvento],
+        };
+
         await this.tentativasRepository.update(tentativa);
 
         const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(tentativa.pagamentoId);

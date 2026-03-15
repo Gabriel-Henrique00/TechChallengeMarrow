@@ -25,15 +25,20 @@ export class VencimentoPagamentoScheduler {
             const pendentes = await this.tentativasRepository.findPendentesAntesDe(dataLimite);
             if (pendentes.length === 0) return;
 
-            this.logger.log(`Expirando ${pendentes.length} tentativa(s) com mais de 5 minutos...`);
-
             for (const tentativa of pendentes) {
                 const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(
                     tentativa.pagamentoId,
                 );
+
                 if (pagamento?.status === StatusPagamento.PAGO) {
                     tentativa.status      = StatusTentativa.SUCESSO;
                     tentativa.motivoFalha = null;
+                    tentativa.respostaWebhook = {
+                        reconciliadoPor:   'scheduler',
+                        reconciliadoEm:    new Date().toISOString(),
+                        motivo:            'Pagamento já confirmado via webhook antes da expiração.',
+                        referenciaExterna: tentativa.referenciaExterna,
+                    };
                     await this.tentativasRepository.update(tentativa);
                     this.logger.log(
                         `Tentativa ${tentativa.id} reconciliada como SUCESSO — pagamento ${tentativa.pagamentoId} está PAGO.`,
@@ -41,9 +46,14 @@ export class VencimentoPagamentoScheduler {
                     continue;
                 }
 
-                // Pagamento não confirmado: expira a tentativa normalmente
                 tentativa.status      = StatusTentativa.NAO_AUTORIZADO;
                 tentativa.motivoFalha = 'Tempo limite de 5 minutos excedido sem confirmação do banco.';
+                tentativa.respostaWebhook = {
+                    expiradoPor:       'scheduler',
+                    expiradoEm:        new Date().toISOString(),
+                    motivo:            'Nenhum webhook de confirmação recebido dentro do prazo de 5 minutos.',
+                    referenciaExterna: tentativa.referenciaExterna,
+                };
                 await this.tentativasRepository.update(tentativa);
 
                 if (!pagamento) continue;
