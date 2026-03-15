@@ -20,13 +20,14 @@ const dto = {
     cnpj:        '11.111.111/0001-11',
 };
 
-const usuarioSalvo: { id: string; nome: string; email: string; senhaHash: string; nomeEmpresa: string; cnpj: string } = {
+const usuarioSalvo: { id: string; nome: string; email: string; senhaHash: string; nomeEmpresa: string; cnpj: string; criadoEm: Date } = {
     id:          'u1',
     nome:        dto.nome,
     email:       dto.email,
     senhaHash:   'hash',
     nomeEmpresa: dto.nomeEmpresa,
     cnpj:        dto.cnpj,
+    criadoEm:    new Date(),
 };
 
 beforeEach(() => jest.clearAllMocks());
