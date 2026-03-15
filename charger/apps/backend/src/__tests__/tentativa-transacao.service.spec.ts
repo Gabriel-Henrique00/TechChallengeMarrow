@@ -35,11 +35,12 @@ function makePagamentoModelo(overrides = {}): PagamentoModelo {
     return Object.assign(m, overrides);
 }
 
-function makeTentativaModelo(): any {
+function makeTentativaModelo(overrides: any = {}): any {
     return {
         id: 'tent-1', pagamentoId: 'pag-1', status: StatusTentativa.PENDENTE,
         referenciaExterna: 'ref-1', motivoFalha: null, valorTentativa: 100,
         respostaWebhook: null, dataTentativa: new Date(), criadoEm: new Date(),
+        ...overrides,
     };
 }
 
@@ -83,6 +84,41 @@ describe('TentativasTransacaoService', () => {
             mockPagRepo.findById.mockResolvedValue({});
             mockTentRepo.findByPaymentId.mockResolvedValue([makeTentativaModelo()]);
             expect(await makeService().findByPaymentId('pag-1', 'u1')).toHaveLength(1);
+        });
+
+        it('mantém todas as tentativas que não são SUCESSO', async () => {
+            mockPagRepo.findById.mockResolvedValue({});
+            mockTentRepo.findByPaymentId.mockResolvedValue([
+                makeTentativaModelo({ id: 't1', status: StatusTentativa.PENDENTE }),
+                makeTentativaModelo({ id: 't2', status: StatusTentativa.FALHA }),
+                makeTentativaModelo({ id: 't3', status: StatusTentativa.NAO_AUTORIZADO }),
+            ]);
+            const result = await makeService().findByPaymentId('pag-1', 'u1');
+            expect(result).toHaveLength(3);
+        });
+
+        it('deduplica tentativas SUCESSO — mantém apenas a primeira', async () => {
+            mockPagRepo.findById.mockResolvedValue({});
+            mockTentRepo.findByPaymentId.mockResolvedValue([
+                makeTentativaModelo({ id: 't1', status: StatusTentativa.SUCESSO }),
+                makeTentativaModelo({ id: 't2', status: StatusTentativa.SUCESSO }),
+                makeTentativaModelo({ id: 't3', status: StatusTentativa.SUCESSO }),
+            ]);
+            const result = await makeService().findByPaymentId('pag-1', 'u1');
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('t1');
+        });
+
+        it('mantém tentativas não-SUCESSO junto com a primeira SUCESSO', async () => {
+            mockPagRepo.findById.mockResolvedValue({});
+            mockTentRepo.findByPaymentId.mockResolvedValue([
+                makeTentativaModelo({ id: 't1', status: StatusTentativa.FALHA }),
+                makeTentativaModelo({ id: 't2', status: StatusTentativa.SUCESSO }),
+                makeTentativaModelo({ id: 't3', status: StatusTentativa.SUCESSO }),
+            ]);
+            const result = await makeService().findByPaymentId('pag-1', 'u1');
+            expect(result).toHaveLength(2);
+            expect(result.map((r) => r.id)).toEqual(['t1', 't2']);
         });
     });
 

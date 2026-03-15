@@ -1,5 +1,6 @@
 import { PagamentosService } from '../modules/payment/pagamento.service';
 import { ResourceNotFoundException } from '../shared/exceptions/resource-not-found.exception';
+import { PaymentCannotBeCancelledException } from '../shared/exceptions/payment-cannot-be-cancelled.exception';
 import { StatusPagamento } from '../shared/enums/status-pagamento.enum';
 import { Pagamento } from '../modules/payment/entities/pagamento.entity';
 
@@ -8,6 +9,7 @@ const mockPagamentosRepo = {
     findAll:                      jest.fn(),
     findById:                     jest.fn(),
     findByIdWithAttemptsInternal: jest.fn(),
+    update:                       jest.fn(),
 };
 const mockClientesRepo = { findById: jest.fn() };
 const makeService      = () => new PagamentosService(mockPagamentosRepo as any, mockClientesRepo as any);
@@ -102,6 +104,49 @@ describe('PagamentosService', () => {
         it('lança ResourceNotFoundException quando não encontrado', async () => {
             mockPagamentosRepo.findByIdWithAttemptsInternal.mockResolvedValue(null);
             await expect(makeService().findByIdPublico('x')).rejects.toThrow(ResourceNotFoundException);
+        });
+    });
+
+    describe('cancel()', () => {
+        it('lança ResourceNotFoundException quando pagamento não existe', async () => {
+            mockPagamentosRepo.findById.mockResolvedValue(null);
+            await expect(makeService().cancel('pag-1', 'u1')).rejects.toThrow(ResourceNotFoundException);
+            expect(mockPagamentosRepo.update).not.toHaveBeenCalled();
+        });
+
+        it('cancela pagamento com status AGUARDANDO_PAGAMENTO', async () => {
+            const pag = makePagamento({ status: StatusPagamento.AGUARDANDO_PAGAMENTO });
+            mockPagamentosRepo.findById.mockResolvedValue(pag);
+            mockPagamentosRepo.update.mockResolvedValue({ ...pag, status: StatusPagamento.CANCELADO });
+            const result = await makeService().cancel('pag-1', 'u1');
+            expect(mockPagamentosRepo.update).toHaveBeenCalledTimes(1);
+            expect(result.status).toBe(StatusPagamento.CANCELADO);
+        });
+
+        it('cancela pagamento com status NAO_AUTORIZADO', async () => {
+            const pag = makePagamento({ status: StatusPagamento.NAO_AUTORIZADO });
+            mockPagamentosRepo.findById.mockResolvedValue(pag);
+            mockPagamentosRepo.update.mockResolvedValue({ ...pag, status: StatusPagamento.CANCELADO });
+            await makeService().cancel('pag-1', 'u1');
+            expect(mockPagamentosRepo.update).toHaveBeenCalledTimes(1);
+        });
+
+        it('lança PaymentCannotBeCancelledException quando status é PAGO', async () => {
+            mockPagamentosRepo.findById.mockResolvedValue(makePagamento({ status: StatusPagamento.PAGO }));
+            await expect(makeService().cancel('pag-1', 'u1')).rejects.toThrow(PaymentCannotBeCancelledException);
+            expect(mockPagamentosRepo.update).not.toHaveBeenCalled();
+        });
+
+        it('lança PaymentCannotBeCancelledException quando status é VENCIDO', async () => {
+            mockPagamentosRepo.findById.mockResolvedValue(makePagamento({ status: StatusPagamento.VENCIDO }));
+            await expect(makeService().cancel('pag-1', 'u1')).rejects.toThrow(PaymentCannotBeCancelledException);
+            expect(mockPagamentosRepo.update).not.toHaveBeenCalled();
+        });
+
+        it('lança PaymentCannotBeCancelledException quando status já é CANCELADO', async () => {
+            mockPagamentosRepo.findById.mockResolvedValue(makePagamento({ status: StatusPagamento.CANCELADO }));
+            await expect(makeService().cancel('pag-1', 'u1')).rejects.toThrow(PaymentCannotBeCancelledException);
+            expect(mockPagamentosRepo.update).not.toHaveBeenCalled();
         });
     });
 });

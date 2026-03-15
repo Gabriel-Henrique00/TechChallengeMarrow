@@ -39,6 +39,10 @@ describe('Pagamento entity', () => {
       expect(makePagamento({ status: StatusPagamento.VENCIDO }).podeReceberTentativa()).toBe(false);
     });
 
+    it('retorna false quando status é CANCELADO', () => {
+      expect(makePagamento({ status: StatusPagamento.CANCELADO }).podeReceberTentativa()).toBe(false);
+    });
+
     it('retorna false quando dataVencimento está no passado', () => {
       expect(makePagamento({ dataVencimento: new Date(Date.now() - 1000) }).podeReceberTentativa()).toBe(false);
     });
@@ -80,6 +84,28 @@ describe('Pagamento entity', () => {
 
     it('retorna true quando não está pago e data está no passado', () => {
       expect(makePagamento({ dataVencimento: new Date(Date.now() - 1000) }).estaVencido()).toBe(true);
+    });
+  });
+
+  describe('podeCancelar()', () => {
+    it('retorna true quando status é AGUARDANDO_PAGAMENTO', () => {
+      expect(makePagamento({ status: StatusPagamento.AGUARDANDO_PAGAMENTO }).podeCancelar()).toBe(true);
+    });
+
+    it('retorna true quando status é NAO_AUTORIZADO', () => {
+      expect(makePagamento({ status: StatusPagamento.NAO_AUTORIZADO }).podeCancelar()).toBe(true);
+    });
+
+    it('retorna false quando status é PAGO', () => {
+      expect(makePagamento({ status: StatusPagamento.PAGO }).podeCancelar()).toBe(false);
+    });
+
+    it('retorna false quando status é VENCIDO', () => {
+      expect(makePagamento({ status: StatusPagamento.VENCIDO }).podeCancelar()).toBe(false);
+    });
+
+    it('retorna false quando status já é CANCELADO', () => {
+      expect(makePagamento({ status: StatusPagamento.CANCELADO }).podeCancelar()).toBe(false);
     });
   });
 
@@ -127,6 +153,14 @@ describe('Pagamento entity', () => {
       const p = makePagamento();
       p.marcarComoVencido();
       expect(p.status).toBe(StatusPagamento.VENCIDO);
+    });
+  });
+
+  describe('marcarComoCancelado()', () => {
+    it('define status CANCELADO', () => {
+      const p = makePagamento();
+      p.marcarComoCancelado();
+      expect(p.status).toBe(StatusPagamento.CANCELADO);
     });
   });
 });
