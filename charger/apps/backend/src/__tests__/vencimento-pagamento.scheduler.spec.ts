@@ -1,5 +1,4 @@
-import { VencimentoPagamentoScheduler } from '../modules/payment-attempts/vencimento-pagamento.scheduler';
-import { StatusTentativa } from '../shared/enums/status-tentativa.enum';
+import { VencimentoPagamentoScheduler } from '../modules/payment-attempts/vencimento-pagamento.scheduler';import { StatusTentativa } from '../shared/enums/status-tentativa.enum';
 import { StatusPagamento } from '../shared/enums/status-pagamento.enum';
 import { Pagamento } from '../modules/payment/entities/pagamento.entity';
 import { TentativaTransacao } from '../modules/payment-attempts/entities/tentativa-transacao.entity';
@@ -7,7 +6,6 @@ import { TentativaTransacao } from '../modules/payment-attempts/entities/tentati
 const mockTentRepo = { findPendentesAntesDe: jest.fn(), update: jest.fn() };
 const mockPagRepo  = { findByIdWithAttemptsInternal: jest.fn(), update: jest.fn() };
 const makeScheduler = () => new VencimentoPagamentoScheduler(mockTentRepo as any, mockPagRepo as any);
-
 function makeTentativa(overrides: Partial<TentativaTransacao> = {}): TentativaTransacao {
     return Object.assign(new TentativaTransacao(), {
         id: 'tent-1', pagamentoId: 'pag-1',
@@ -26,7 +24,7 @@ function makePagamento(overrides: Partial<Pagamento> = {}): Pagamento {
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('PaymentExpiryScheduler', () => {
+describe('VencimentoPagamentoScheduler', () => {
     describe('expirarTentativasAntigas()', () => {
         it('não faz nada quando não há tentativas pendentes', async () => {
             mockTentRepo.findPendentesAntesDe.mockResolvedValue([]);
