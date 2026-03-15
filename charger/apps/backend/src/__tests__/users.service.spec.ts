@@ -20,7 +20,7 @@ const dto = {
     cnpj:        '11.111.111/0001-11',
 };
 
-const usuarioSalvo: Usuario = {
+const usuarioSalvo: { id: string; nome: string; email: string; senhaHash: string; nomeEmpresa: string; cnpj: string } = {
     id:          'u1',
     nome:        dto.nome,
     email:       dto.email,
