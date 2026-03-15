@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import type { IPagamentosRepository } from './pagamento.repository';
 import { PagamentoModelo } from '../models/pagamento.model';
 import { Pagamento } from '../entities/pagamento.entity';
@@ -11,6 +11,8 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
     constructor(
         @InjectRepository(PagamentoModelo)
         private readonly repositorio: Repository<PagamentoModelo>,
+        @InjectDataSource()
+        private readonly dataSource: DataSource,
     ) {}
 
     async create(pagamento: Partial<Pagamento>): Promise<Pagamento> {
@@ -49,6 +51,17 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
             where:     { id },
             relations: ['cliente', 'tentativas'],
         });
+        return modelo ? PagamentoMapper.toDomain(modelo) : null;
+    }
+
+    async findByIdForUpdate(id: string): Promise<Pagamento | null> {
+        const modelo = await this.dataSource
+            .getRepository(PagamentoModelo)
+            .findOne({
+                where:     { id },
+                relations: ['cliente', 'tentativas'],
+                lock:      { mode: 'pessimistic_write' },
+            });
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
     }
 
