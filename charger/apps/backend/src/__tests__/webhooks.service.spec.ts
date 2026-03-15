@@ -78,12 +78,23 @@ describe('WebhooksService', () => {
             expect(p.valorPago).toBe(150);
         });
 
-        it('ignora evento duplicado quando pagamento já está PAGO', async () => {
+        it('ignora evento duplicado quando pagamento já está PAGO via payment_intent/completed', async () => {
             const t = makeTentativa({ status: StatusTentativa.SUCESSO });
             const p = makePagamento({ status: StatusPagamento.PAGO });
             mockTentRepo.findByReferenciaExterna.mockResolvedValue(t);
             mockPagRepo.findByIdWithAttemptsInternal.mockResolvedValue(p);
             await makeService().processarPluggy({ event: 'payment_intent/completed', paymentRequestId: 'req-1' });
+            expect(mockPagRepo.update).not.toHaveBeenCalled();
+        });
+
+        it('não chama update no pagamento quando já está PAGO via payment_request/updated COMPLETED', async () => {
+            const t = makeTentativa({ status: StatusTentativa.SUCESSO });
+            const p = makePagamento({ status: StatusPagamento.PAGO });
+            mockTentRepo.findByReferenciaExterna.mockResolvedValue(t);
+            mockPagRepo.findByIdWithAttemptsInternal.mockResolvedValue(p);
+            await makeService().processarPluggy({
+                event: 'payment_request/updated', status: 'COMPLETED', paymentRequestId: 'req-1',
+            });
             expect(mockPagRepo.update).not.toHaveBeenCalled();
         });
 
