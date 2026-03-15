@@ -7,8 +7,8 @@ import { StatusPagamento } from '../../shared/enums/status-pagamento.enum';
 import { EXPIRACAO_TENTATIVA_MS } from '../payment/entities/pagamento.entity';
 
 @Injectable()
-export class PaymentExpiryScheduler {
-    private readonly logger = new Logger(PaymentExpiryScheduler.name);
+export class VencimentoPagamentoScheduler {
+    private readonly logger = new Logger(VencimentoPagamentoScheduler.name);
 
     constructor(
         @Inject('ITentativasTransacaoRepository')

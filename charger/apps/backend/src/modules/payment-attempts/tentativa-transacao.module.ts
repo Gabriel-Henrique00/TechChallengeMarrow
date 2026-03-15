@@ -6,7 +6,7 @@ import { TentativasTransacaoTypeOrmRepository } from './repositories/tentativa-t
 import { TentativaTransacaoModelo } from './models/tentativa-transacao.model';
 import { PagamentosModule } from '../payment/pagamento.module';
 import { PluggyPaymentAdapter } from '../../integrations/payment-provider/pluggy.payment.adapter';
-import { PaymentExpiryScheduler } from './payment-expiry.scheduler';
+import { VencimentoPagamentoScheduler } from './vencimento-pagamento.scheduler';
 
 @Module({
     imports: [
@@ -16,7 +16,7 @@ import { PaymentExpiryScheduler } from './payment-expiry.scheduler';
     controllers: [TentativasTransacaoController],
     providers: [
         TentativasTransacaoService,
-        PaymentExpiryScheduler,
+        VencimentoPagamentoScheduler,
         {
             provide:  'ITentativasTransacaoRepository',
             useClass: TentativasTransacaoTypeOrmRepository,
