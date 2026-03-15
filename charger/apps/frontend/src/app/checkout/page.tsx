@@ -22,11 +22,12 @@ function CheckoutContent() {
     const searchParams = useSearchParams()
     const router       = useRouter()
     const pagamentoId  = searchParams.get("id")
+    const result       = searchParams.get("result")
 
-    const [payment, setPayment]         = useState<PublicPayment | null>(null)
-    const [step, setStep]               = useState<CheckoutStep>("carregando")
-    const [loadError, setLoadError]     = useState<string | null>(null)
-    const [paymentError, setPaymentError] = useState<string | null>(null)
+    const [payment, setPayment]             = useState<PublicPayment | null>(null)
+    const [step, setStep]                   = useState<CheckoutStep>("carregando")
+    const [loadError, setLoadError]         = useState<string | null>(null)
+    const [paymentError, setPaymentError]   = useState<string | null>(null)
 
     useEffect(() => {
         if (!pagamentoId) { router.replace("/"); return }
@@ -34,13 +35,22 @@ function CheckoutContent() {
         paymentService.findByIdPublico(pagamentoId)
             .then((p) => {
                 setPayment(p)
-                setStep(p.status === "PAGO" ? "ja-pago" : "detalhes")
+                if (p.status === "PAGO") {
+                    setStep("ja-pago")
+                } else if (result === "success") {
+                    setStep("ja-pago")
+                } else if (result === "error") {
+                    setPaymentError("O pagamento foi cancelado ou recusado pelo banco.")
+                    setStep("detalhes")
+                } else {
+                    setStep("detalhes")
+                }
             })
             .catch((err) => {
                 console.error(err)
                 setLoadError(err?.message ?? "Erro ao carregar pagamento.")
             })
-    }, [pagamentoId, router])
+    }, [pagamentoId, router, result])
 
     const handleRealizarPagamento = async () => {
         if (!payment) return
@@ -55,13 +65,13 @@ function CheckoutContent() {
             } else {
                 setPaymentError(
                     attempt.motivoFalha ??
-                    "Não foi possível gerar le link de pagamento."
+                    "Não foi possível gerar o link de pagamento. Verifique as credenciais da Pluggy no servidor."
                 )
                 setStep("detalhes")
             }
         } catch (err: any) {
             console.error(err)
-            setPaymentError(err?.message ?? "Erro ao processar pagamento.")
+            setPaymentError(err?.message ?? "Erro ao processar pagamento. Tente novamente.")
             setStep("detalhes")
         }
     }
@@ -86,6 +96,7 @@ function CheckoutContent() {
 
     return (
         <main className="mx-auto max-w-xl px-4 py-8">
+
             {step === "carregando" && (
                 <div className="flex h-64 items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -99,9 +110,13 @@ function CheckoutContent() {
                             <CheckCircle2 className="h-10 w-10 text-success" />
                         </div>
                         <h1 className="mb-2 text-2xl font-bold">Pagamento Já Realizado</h1>
+                        <p className="mx-auto mb-6 max-w-md text-muted-foreground">
+                            Esta cobrança já foi paga.
+                        </p>
                         <div className="mx-auto max-w-sm rounded-lg bg-muted p-4">
                             <p className="text-sm text-muted-foreground">Valor pago</p>
                             <p className="text-2xl font-bold">{formatCurrency(payment?.valor ?? 0)}</p>
+                            <p className="mt-2 text-sm text-muted-foreground">{payment?.nome}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -111,7 +126,9 @@ function CheckoutContent() {
                 <div className="space-y-6">
                     <div className="text-center">
                         <h1 className="text-2xl font-bold">Realizar Pagamento</h1>
-                        <p className="mt-2 text-muted-foreground">Confira os dados antes de prosseguir</p>
+                        <p className="mt-2 text-muted-foreground">
+                            Confira os dados antes de prosseguir
+                        </p>
                     </div>
 
                     {paymentError && (
@@ -124,7 +141,9 @@ function CheckoutContent() {
                     <Card>
                         <CardHeader>
                             <CardTitle>{payment.nome}</CardTitle>
-                            {payment.descricao && <CardDescription>{payment.descricao}</CardDescription>}
+                            {payment.descricao && (
+                                <CardDescription>{payment.descricao}</CardDescription>
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -155,10 +174,21 @@ function CheckoutContent() {
                                 <p className="font-medium">{payment.nomeCliente}</p>
                             </div>
 
-                            <Button className="w-full" size="lg" onClick={handleRealizarPagamento}>
+                            <Button
+                                className="w-full"
+                                size="lg"
+                                onClick={handleRealizarPagamento}
+                            >
                                 Realizar Pagamento via Open Finance
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
+
+                            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                <ShieldCheck className="h-4 w-4" />
+                                <span>
+                  Você será redirecionado para a Pluggy para concluir o pagamento
+                </span>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -171,7 +201,9 @@ function CheckoutContent() {
                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
                         </div>
                         <h1 className="mb-2 text-2xl font-bold">Iniciando Pagamento</h1>
-                        <p className="text-muted-foreground">Aguarde, gerando link seguro...</p>
+                        <p className="mx-auto max-w-md text-muted-foreground">
+                            Aguarde, estamos gerando seu link de pagamento seguro via Open Finance...
+                        </p>
                     </CardContent>
                 </Card>
             )}
@@ -197,9 +229,32 @@ export default function CheckoutPage() {
                 </div>
             </header>
 
-            <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <Suspense fallback={
+                <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            }>
                 <CheckoutContent />
             </Suspense>
+
+            <footer className="border-t border-border bg-card py-6">
+                <div className="mx-auto max-w-xl px-4 text-center text-sm text-muted-foreground">
+                    <p>
+                        Pagamento processado com segurança via{" "}
+                        <span className="font-medium text-foreground">Pluggy</span>{" "}
+                        (Open Finance)
+                    </p>
+                    <p className="mt-1">
+                        Dúvidas?{" "}
+                        <a
+                        href="mailto:suporte@charger.com"
+                        className="text-primary underline underline-offset-4"
+                        >
+                        suporte@charger.com
+                    </a>
+                </p>
         </div>
-    )
+</footer>
+</div>
+)
 }

@@ -5,7 +5,8 @@ export const paymentAttemptService = {
     async create(pagamentoId: string): Promise<PaymentAttempt> {
         return apiClient.post<PaymentAttempt>(
             `/payments/${pagamentoId}/attempt`,
-            {}
+            {},
+            false
         )
     },
 

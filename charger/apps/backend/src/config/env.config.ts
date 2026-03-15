@@ -14,6 +14,7 @@ export default () => ({
   },
   app: {
     baseUrl: process.env.APP_BASE_URL || 'http://localhost:3001',
+    frontendUrl: process.env.FRONTEND_URL || 'https://industriously-breakfront-laticia.ngrok-free.dev',
   },
   jwt: {
     secret:    process.env.JWT_SECRET     || 'super-senha-charger-jwt-secret',

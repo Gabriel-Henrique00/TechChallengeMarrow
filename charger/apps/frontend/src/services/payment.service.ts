@@ -1,7 +1,6 @@
 import { apiClient } from "@/lib/api-client"
 import type { Payment, CreatePaymentPayload } from "@/types"
 
-// tipo retornado pelo endpoint público (sem dados sensíveis)
 export interface PublicPayment {
     id: string
     nome: string
@@ -21,7 +20,6 @@ export const paymentService = {
         return apiClient.get<Payment>(`/payments/${pagamentoId}`)
     },
 
-    // Sem autenticação — usado no checkout pelo cliente
     async findByIdPublico(pagamentoId: string): Promise<PublicPayment> {
         return apiClient.get<PublicPayment>(`/payments/public/${pagamentoId}`, false)
     },

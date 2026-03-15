@@ -3,13 +3,17 @@ import type { IPagamentosRepository } from '../payment/repositories/pagamento.re
 import type { ITentativasTransacaoRepository } from '../payment-attempts/repositories/tentativa-transacao.repository';
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
 
-// Eventos do Pluggy → status interno
-// Ref: https://docs.pluggy.ai/docs/webhooks
 const PLUGGY_EVENT_MAP: Record<string, StatusTentativa> = {
-    'payment_intent/completed':                  StatusTentativa.SUCESSO,
-    'payment_intent/error':                      StatusTentativa.FALHA,
-    'payment_request/completed':                 StatusTentativa.SUCESSO,
+    'payment_intent/completed':                   StatusTentativa.SUCESSO,
+    'payment_intent/error':                       StatusTentativa.FALHA,
     'payment_intent/waiting_payer_authorization': StatusTentativa.PENDENTE,
+    'payment_request/updated':                    StatusTentativa.PENDENTE,
+};
+
+// Status do payment_request que indicam conclusão/erro
+const PAYMENT_REQUEST_STATUS_MAP: Record<string, StatusTentativa> = {
+    'COMPLETED': StatusTentativa.SUCESSO,
+    'ERROR':     StatusTentativa.FALHA,
 };
 
 @Injectable()
@@ -23,37 +27,53 @@ export class WebhooksService {
         private readonly tentativasRepository: ITentativasTransacaoRepository,
     ) {}
 
-    /**
-     * Processa eventos de pagamento do Pluggy.
-     *
-     * Payload esperado:
-     * {
-     *   "id":    "event-uuid",
-     *   "event": "payment_intent/completed",
-     *   "data":  { "id": "intent-id", "paymentRequestId": "request-id" }
-     * }
-     */
     async processarPluggy(payload: Record<string, any>): Promise<void> {
         const event = payload?.event as string;
 
-        const statusInterno = PLUGGY_EVENT_MAP[event];
+        this.logger.log(`Processando evento: ${event}`);
 
-        if (!statusInterno) {
-            this.logger.log(`Evento Pluggy ignorado: ${event}`);
+        // paymentRequestId vem na RAIZ do payload da Pluggy
+        const paymentRequestId: string =
+            payload?.paymentRequestId ??
+            payload?.data?.paymentRequestId ??
+            payload?.data?.id;
+
+        if (!paymentRequestId) {
+            this.logger.warn(`Payload sem paymentRequestId — ignorado: ${event}`);
             return;
         }
 
+        let statusInterno: StatusTentativa | undefined;
 
-        const paymentRequestId: string = payload?.data?.paymentRequestId ?? payload?.data?.id;
+        if (event === 'payment_request/updated') {
+            const requestStatus = payload?.status as string;
+            statusInterno = PAYMENT_REQUEST_STATUS_MAP[requestStatus];
 
-        if (!paymentRequestId) {
-            this.logger.warn('Webhook Pluggy com payload incompleto.', payload);
+            if (!statusInterno) {
+                this.logger.log(`payment_request/updated com status intermediário: ${requestStatus} — ignorado`);
+                return;
+            }
+        } else {
+            statusInterno = PLUGGY_EVENT_MAP[event];
+        }
+
+        if (!statusInterno) {
+            this.logger.log(`Evento sem mapeamento de status: ${event} — ignorado`);
             return;
         }
 
         const tentativa = await this.tentativasRepository.findByReferenciaExterna(paymentRequestId);
         if (!tentativa) {
-            this.logger.warn(`Tentativa não encontrada para referenciaExterna: ${paymentRequestId}`);
+            this.logger.warn(`Tentativa não encontrada para paymentRequestId: ${paymentRequestId}`);
+            return;
+        }
+
+        // Não regride status — se já está SUCESSO, não volta para PENDENTE ou FALHA
+        if (
+            tentativa.status === StatusTentativa.SUCESSO &&
+            statusInterno !== StatusTentativa.SUCESSO
+        ) {
+            this.logger.log(`Ignorando regressão de status: ${tentativa.status} → ${statusInterno}`);
             return;
         }
 
@@ -61,18 +81,17 @@ export class WebhooksService {
         tentativa.respostaWebhook = payload;
         await this.tentativasRepository.update(tentativa);
 
-        // Atualiza pagamento conforme resultado
         const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(tentativa.pagamentoId);
         if (!pagamento) return;
 
         if (statusInterno === StatusTentativa.SUCESSO) {
             pagamento.marcarComoPago(pagamento.valor);
             await this.pagamentosRepository.update(pagamento);
+            this.logger.log(` Pagamento ${pagamento.id} → PAGO via webhook [${event}]`);
         } else if (statusInterno === StatusTentativa.FALHA) {
             pagamento.marcarComoNaoAutorizado();
             await this.pagamentosRepository.update(pagamento);
+            this.logger.log(` Pagamento ${pagamento.id} → NAO_AUTORIZADO via webhook [${event}]`);
         }
-
-        this.logger.log(`Pagamento ${tentativa.pagamentoId} atualizado via webhook Pluggy [${event}]: ${statusInterno}`);
     }
 }

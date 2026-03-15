@@ -13,11 +13,6 @@ interface PluggyApiKeyCache {
     expiresAt: number;
 }
 
-interface PluggyConnector {
-    id:   number;
-    name: string;
-}
-
 interface PluggyPaymentRequestResponse {
     id:         string;
     status:     string;
@@ -26,23 +21,21 @@ interface PluggyPaymentRequestResponse {
 
 @Injectable()
 export class PluggyPaymentAdapter implements IPaymentProvider {
-    private readonly logger    = new Logger(PluggyPaymentAdapter.name);
-    private readonly baseUrl   = 'https://api.pluggy.ai';
+    private readonly logger       = new Logger(PluggyPaymentAdapter.name);
+    private readonly baseUrl      = 'https://api.pluggy.ai';
     private readonly clientId:     string;
     private readonly clientSecret: string;
     private readonly recipientId:  string;
-    private readonly appBaseUrl:   string;
+    private readonly frontendUrl:  string;
 
     private cachedApiKey: PluggyApiKeyCache | null = null;
 
     constructor(private readonly configService: ConfigService) {
-        this.clientId    = this.configService.get<string>('pluggy.clientId')    ?? '';
-        this.clientSecret= this.configService.get<string>('pluggy.clientSecret') ?? '';
-        this.recipientId = this.configService.get<string>('pluggy.recipientId') ?? '';
-        this.appBaseUrl  = this.configService.get<string>('app.baseUrl')        ?? 'http://localhost:3001';
+        this.clientId     = this.configService.get<string>('pluggy.clientId')     ?? '';
+        this.clientSecret = this.configService.get<string>('pluggy.clientSecret') ?? '';
+        this.recipientId  = this.configService.get<string>('pluggy.recipientId')  ?? '';
+        this.frontendUrl  = this.configService.get<string>('app.frontendUrl')     ?? 'http://localhost:3001';
     }
-
-    // ─── IPaymentProvider ────────────────────────────────────────────────────
 
     async initiatePayment(input: IniciarPagamentoInput): Promise<IniciarPagamentoOutput> {
         try {
@@ -52,14 +45,15 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
 
             const apiKey = await this.getApiKey();
 
+
             const body = {
                 amount:      input.valor,
                 description: input.descricao ?? `Pagamento #${input.pagamentoId}`,
                 recipientId: this.recipientId,
                 callbackUrls: {
-                    success: `${this.appBaseUrl}/payment/${input.pagamentoId}/success`,
-                    error:   `${this.appBaseUrl}/payment/${input.pagamentoId}/error`,
-                    pending: `${this.appBaseUrl}/payment/${input.pagamentoId}/pending`,
+                    success: `${this.frontendUrl}/checkout?id=${input.pagamentoId}&result=success`,
+                    error:   `${this.frontendUrl}/checkout?id=${input.pagamentoId}&result=error`,
+                    pending: `${this.frontendUrl}/checkout?id=${input.pagamentoId}&result=pending`,
                 },
             };
 
@@ -83,9 +77,9 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
 
             return {
                 status:            StatusTentativa.PENDENTE,
-                referenciaExterna: data.id,         // paymentRequestId do Pluggy
+                referenciaExterna: data.id,
                 motivoFalha:       null,
-                paymentUrl:        data.paymentUrl, // https://pay.pluggy.ai/{id}
+                paymentUrl:        data.paymentUrl,
             };
         } catch (error: any) {
             this.logger.error('Erro ao criar Payment Request no Pluggy', error?.message);
@@ -99,39 +93,11 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
     }
 
     async getAvailableBanks(): Promise<BancoDisponivel[]> {
-        try {
-            const apiKey = await this.getApiKey();
-
-            const response = await fetch(
-                `${this.baseUrl}/connectors?supportsPaymentInitiation=true`,
-                {
-                    headers: {
-                        'X-API-KEY':    apiKey,
-                        'Content-Type': 'application/json',
-                    },
-                },
-            );
-
-            if (!response.ok) {
-                throw new Error(`Pluggy retornou status ${response.status} ao buscar conectores`);
-            }
-
-            const data: { results: PluggyConnector[] } = await response.json();
-
-            return data.results.map((c) => ({
-                id:   String(c.id),
-                nome: c.name,
-            }));
-        } catch (error: any) {
-            this.logger.error('Erro ao buscar bancos disponíveis no Pluggy', error?.message);
-            return [];
-        }
+        return [];
     }
 
-    // ─── Autenticação com cache ───────────────────────────────────────────────
-
     private async getApiKey(): Promise<string> {
-        const margem = 5 * 60 * 1000; // 5 min de margem
+        const margem = 5 * 60 * 1000;
 
         if (this.cachedApiKey && this.cachedApiKey.expiresAt > Date.now() + margem) {
             return this.cachedApiKey.apiKey;
@@ -153,7 +119,6 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
 
         const data: { apiKey: string } = await response.json();
 
-        // apiKey expira em 2h
         this.cachedApiKey = {
             apiKey:    data.apiKey,
             expiresAt: Date.now() + 2 * 60 * 60 * 1000,
