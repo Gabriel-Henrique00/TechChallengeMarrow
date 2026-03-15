@@ -1,35 +1,101 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { AppHeader } from "@/components/layout/app-header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { StatusChart } from "@/components/dashboard/status-chart"
 import { PaymentsTable } from "@/components/dashboard/payments-table"
 import { dashboardService } from "@/services/dashboard.service"
+import { useNotifications } from "@/contexts/notification-context"
 import type { DashboardSummary } from "@/types"
 import { AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
+const POLLING_INTERVAL_MS = 30 * 1000
 
 export default function DashboardPage() {
     const [summary, setSummary]     = useState<DashboardSummary | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError]         = useState<string | null>(null)
+    const { addNotification }       = useNotifications()
 
-    const loadData = () => {
-        setIsLoading(true)
+    const previousStatusRef = useRef<Map<string, string>>(new Map())
+
+    const checkForStatusChanges = (newData: DashboardSummary) => {
+        const prevMap = previousStatusRef.current
+
+        for (const payment of newData.pagamentos) {
+            const prevStatus = prevMap.get(payment.id)
+
+            // Primeira carga — só salva, não notifica
+            if (!prevStatus) {
+                prevMap.set(payment.id, payment.status)
+                continue
+            }
+
+            // Mudou de status — notifica
+            if (prevStatus !== payment.status) {
+                prevMap.set(payment.id, payment.status)
+
+                if (payment.status === "PAGO") {
+                    addNotification({
+                        type:      "success",
+                        title:     "Pagamento Confirmado",
+                        message:   `"${payment.nome}" de ${payment.nomeCliente} foi pago com sucesso.`,
+                        paymentId: payment.id,
+                    })
+                } else if (payment.status === "NAO_AUTORIZADO") {
+                    addNotification({
+                        type:      "error",
+                        title:     "Pagamento Não Autorizado",
+                        message:   `"${payment.nome}" de ${payment.nomeCliente} foi recusado.`,
+                        paymentId: payment.id,
+                    })
+                } else if (payment.status === "CANCELADO") {
+                    addNotification({
+                        type:      "warning",
+                        title:     "Pagamento Cancelado",
+                        message:   `"${payment.nome}" de ${payment.nomeCliente} foi cancelado.`,
+                        paymentId: payment.id,
+                    })
+                } else if (payment.status === "VENCIDO") {
+                    addNotification({
+                        type:      "warning",
+                        title:     "Pagamento Vencido",
+                        message:   `"${payment.nome}" de ${payment.nomeCliente} venceu sem pagamento.`,
+                        paymentId: payment.id,
+                    })
+                }
+            }
+        }
+    }
+
+    const loadData = (showLoading = true) => {
+        if (showLoading) setIsLoading(true)
         setError(null)
         dashboardService
             .getSummary()
-            .then((data) => setSummary(data ?? null))
+            .then((data) => {
+                if (data) {
+                    checkForStatusChanges(data)
+                    setSummary(data)
+                }
+            })
             .catch((err) => {
                 console.error(err)
-                setError(err?.message ?? "Erro ao carregar dados do dashboard.")
+                if (showLoading) setError(err?.message ?? "Erro ao carregar dados do dashboard.")
             })
-            .finally(() => setIsLoading(false))
+            .finally(() => { if (showLoading) setIsLoading(false) })
     }
 
-    useEffect(() => { loadData() }, [])
+    useEffect(() => {
+        loadData(true)
+
+        // Polling silencioso a cada 30 segundos para detectar mudanças
+        const interval = setInterval(() => loadData(false), POLLING_INTERVAL_MS)
+        return () => clearInterval(interval)
+    }, [])
 
     return (
         <>
@@ -45,7 +111,7 @@ export default function DashboardPage() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={loadData}
+                                onClick={() => loadData(true)}
                                 className="ml-4 text-destructive hover:text-destructive"
                             >
                                 <RefreshCw className="mr-1 h-3 w-3" />

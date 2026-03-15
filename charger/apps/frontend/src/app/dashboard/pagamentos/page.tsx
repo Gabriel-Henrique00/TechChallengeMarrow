@@ -19,7 +19,7 @@ import { StatusBadge } from "@/components/common/status-badge"
 import { paymentService } from "@/services/payment.service"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import type { Payment } from "@/types"
-import { Eye, Plus, Search, Filter, AlertCircle, RefreshCw } from "lucide-react"
+import { Plus, Search, Filter, AlertCircle, RefreshCw } from "lucide-react"
 
 export default function PagamentosPage() {
     const [payments, setPayments]         = useState<Payment[]>([])
@@ -135,7 +135,7 @@ export default function PagamentosPage() {
                                             <TableHead>Valor</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead className="hidden lg:table-cell">Vencimento</TableHead>
-                                            <TableHead className="w-[50px]">
+                                            <TableHead className="w-[100px]">
                                                 <span className="sr-only">Ações</span>
                                             </TableHead>
                                         </TableRow>
@@ -171,10 +171,9 @@ export default function PagamentosPage() {
                                                         {formatDate(payment.dataVencimento)}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Button variant="ghost" size="icon" asChild>
+                                                        <Button variant="outline" size="sm" asChild>
                                                             <Link href={`/dashboard/pagamentos/details?id=${payment.id}`}>
-                                                                <Eye className="h-4 w-4" />
-                                                                <span className="sr-only">Ver detalhes</span>
+                                                                Ver mais
                                                             </Link>
                                                         </Button>
                                                     </TableCell>

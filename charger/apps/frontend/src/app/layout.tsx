@@ -1,14 +1,15 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { AuthProvider } from "@/contexts/auth-context"
+import { NotificationProvider } from "@/contexts/notification-context"
 import "./globals.css"
 
-const geist = Geist({ subsets: ["latin"] })
+const geist     = Geist({ subsets: ["latin"] })
 const geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
     title: {
-        default: "Charger - Gestão de Cobranças",
+        default:  "Charger - Gestão de Cobranças",
         template: "%s | Charger",
     },
     description:
@@ -21,7 +22,9 @@ export default function RootLayout({
     return (
         <html lang="pt-BR">
         <body className={`${geist.className} font-sans antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <NotificationProvider>
+            <AuthProvider>{children}</AuthProvider>
+        </NotificationProvider>
         </body>
         </html>
     )

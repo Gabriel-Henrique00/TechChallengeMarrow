@@ -8,26 +8,30 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
+        style:    "currency",
         currency: "BRL",
     }).format(value)
 }
 
 export function formatDate(dateString: string): string {
+    if (!dateString) return ""
     return new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
+        day:      "2-digit",
+        month:    "2-digit",
+        year:     "numeric",
+        timeZone: "America/Sao_Paulo",
     }).format(new Date(dateString))
 }
 
 export function formatDateTime(dateString: string): string {
+    if (!dateString) return ""
     return new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+        day:      "2-digit",
+        month:    "2-digit",
+        year:     "numeric",
+        hour:     "2-digit",
+        minute:   "2-digit",
+        timeZone: "America/Sao_Paulo",
     }).format(new Date(dateString))
 }
 
@@ -56,22 +60,27 @@ export function formatPhone(phone: string): string {
     return phone
 }
 
+export function dateInputToISO(dateString: string): string {
+    if (!dateString) return ""
+    return `${dateString}T12:00:00.000Z`
+}
+
 export function getPaymentStatusLabel(status: PaymentStatus): string {
     const labels: Record<PaymentStatus, string> = {
         AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
-        PAGO: "Pago",
-        NAO_AUTORIZADO: "Não autorizado",
-        CANCELADO: "Cancelado",
-        VENCIDO: "Vencido",
+        PAGO:                 "Pago",
+        NAO_AUTORIZADO:       "Não autorizado",
+        CANCELADO:            "Cancelado",
+        VENCIDO:              "Vencido",
     }
     return labels[status] ?? status
 }
 
 export function getAttemptStatusLabel(status: AttemptStatus): string {
     const labels: Record<AttemptStatus, string> = {
-        PENDENTE: "Pendente",
-        SUCESSO: "Sucesso",
-        FALHA: "Falhou",
+        PENDENTE:       "Pendente",
+        SUCESSO:        "Sucesso",
+        FALHA:          "Falhou",
         NAO_AUTORIZADO: "Não autorizado",
     }
     return labels[status] ?? status

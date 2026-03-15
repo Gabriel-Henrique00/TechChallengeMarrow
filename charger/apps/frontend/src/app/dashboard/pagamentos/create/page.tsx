@@ -17,7 +17,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { clientService } from "@/services/client.service"
 import { paymentService } from "@/services/payment.service"
 import { ApiError } from "@/lib/api-client"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, dateInputToISO } from "@/lib/utils"
 import type { Client } from "@/types"
 import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react"
 
@@ -29,6 +29,7 @@ function CriarPagamentoContent() {
     const [clients, setClients]           = useState<Client[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess, setIsSuccess]       = useState(false)
+    const [createdId, setCreatedId]       = useState<string | null>(null)
     const [error, setError]               = useState("")
 
     const [formData, setFormData] = useState({
@@ -65,49 +66,31 @@ function CriarPagamentoContent() {
     const validate = (): string | null => {
         const valor = getParsedAmount()
 
-        if (!formData.nome.trim()) {
+        if (!formData.nome.trim())
             return "O nome do pagamento é obrigatório."
-        }
-
-        if (formData.nome.trim().length < 3) {
+        if (formData.nome.trim().length < 3)
             return "O nome deve ter no mínimo 3 caracteres."
-        }
-
-        if (formData.nome.trim().length > 200) {
+        if (formData.nome.trim().length > 200)
             return "O nome deve ter no máximo 200 caracteres."
-        }
-
-        if (!formData.amount) {
+        if (!formData.amount)
             return "Informe o valor do pagamento."
-        }
-
-        if (valor <= 0) {
+        if (valor <= 0)
             return "O valor deve ser maior que zero."
-        }
-
-        if (valor < 0.01) {
+        if (valor < 0.01)
             return "O valor mínimo é R$ 0,01."
-        }
-
-        if (valor > 999999.99) {
+        if (valor > 999999.99)
             return "O valor máximo é R$ 999.999,99."
-        }
-
-        if (!formData.dataVencimento) {
+        if (!formData.dataVencimento)
             return "Informe a data de vencimento."
-        }
 
-        const dataVenc = new Date(formData.dataVencimento)
+        const dataVenc = new Date(`${formData.dataVencimento}T12:00:00`)
         const hoje     = new Date()
         hoje.setHours(0, 0, 0, 0)
-
-        if (dataVenc <= hoje) {
+        if (dataVenc <= hoje)
             return "A data de vencimento deve ser uma data futura."
-        }
 
-        if (!formData.clienteId) {
+        if (!formData.clienteId)
             return "Selecione um cliente para esta cobrança."
-        }
 
         return null
     }
@@ -125,15 +108,16 @@ function CriarPagamentoContent() {
         setIsSubmitting(true)
 
         try {
-            await paymentService.create({
+            const created = await paymentService.create({
                 clienteId:      formData.clienteId,
                 nome:           formData.nome.trim(),
                 descricao:      formData.descricao.trim() || undefined,
                 valor:          getParsedAmount(),
-                dataVencimento: new Date(formData.dataVencimento).toISOString(),
+                dataVencimento: dateInputToISO(formData.dataVencimento),
             })
+            setCreatedId(created.id)
             setIsSuccess(true)
-            setTimeout(() => router.push("/dashboard/pagamentos"), 2000)
+            setTimeout(() => router.push(`/dashboard/pagamentos/details?id=${created.id}`), 1500)
         } catch (err) {
             if (err instanceof ApiError) {
                 const raw = err.data as { message?: string | string[] }
@@ -159,7 +143,9 @@ function CriarPagamentoContent() {
                                 <CheckCircle2 className="h-8 w-8 text-success" />
                             </div>
                             <h2 className="mb-2 text-xl font-semibold">Pagamento Criado!</h2>
-                            <p className="text-muted-foreground">A cobrança foi cadastrada com sucesso.</p>
+                            <p className="text-muted-foreground">
+                                Redirecionando para os detalhes...
+                            </p>
                         </CardContent>
                     </Card>
                 </main>
