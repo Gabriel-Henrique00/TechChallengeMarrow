@@ -37,6 +37,13 @@ export class PaymentExpiryScheduler {
                 );
                 if (!pagamento) continue;
 
+                if (pagamento.status === StatusPagamento.PAGO) {
+                    this.logger.log(
+                        `Pagamento ${pagamento.id} já está PAGO — tentativa expirada ignorada.`,
+                    );
+                    continue;
+                }
+
                 if (pagamento.status === StatusPagamento.AGUARDANDO_PAGAMENTO) {
                     const temPendenteAtivo = pagamento.tentativas.some(
                         (t) =>
@@ -51,7 +58,7 @@ export class PaymentExpiryScheduler {
                     }
                 }
 
-                if (pagamento.estaVencido() && pagamento.status !== StatusPagamento.PAGO) {
+                if (pagamento.estaVencido()) {
                     pagamento.marcarComoVencido();
                     await this.pagamentosRepository.update(pagamento);
                     this.logger.log(`Pagamento ${pagamento.id} → VENCIDO.`);
