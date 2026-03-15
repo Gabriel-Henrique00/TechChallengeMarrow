@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"src/__tests__/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -17,7 +17,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config src/__tests__/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -74,11 +74,34 @@
     "typescript-eslint": "^8.20.0"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "transform": { "^.+\\.(t|j)s$": "ts-jest" },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s",
+      "!**/*.module.ts",
+      "!**/*.dto.ts",
+      "!**/main.ts",
+      "!**/app.module.ts",
+      "!**/env.config.ts",
+      "!**/typeorm.config.ts",
+      "!**/jwt-auth.guard.ts",
+      "!**/jwt.strategy.ts",
+      "!**/usuario-atual.decorator.ts",
+      "!**/http-exception.filter.ts",
+      "!**/pluggy.payment.adapter.ts",
+      "!**/*.model.ts",
+      "!**/*.controller.ts",
+      "!**/*.typeorm.repository.ts",
+      "!**/__tests__/**"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }
