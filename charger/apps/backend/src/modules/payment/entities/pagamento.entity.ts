@@ -21,9 +21,10 @@ export class Pagamento {
     atualizadoEm: Date;
 
     podeReceberTentativa(): boolean {
-        if (this.status === StatusPagamento.PAGO)    return false;
-        if (this.status === StatusPagamento.VENCIDO) return false;
-        if (new Date() > this.dataVencimento)        return false;
+        if (this.status === StatusPagamento.PAGO)      return false;
+        if (this.status === StatusPagamento.VENCIDO)   return false;
+        if (this.status === StatusPagamento.CANCELADO) return false;
+        if (new Date() > this.dataVencimento)          return false;
 
         const temPendenteAtivo = (this.tentativas ?? []).some((t) => {
             if (t.status !== StatusTentativa.PENDENTE) return false;
@@ -38,6 +39,13 @@ export class Pagamento {
         return (
             this.status !== StatusPagamento.PAGO &&
             new Date() > this.dataVencimento
+        );
+    }
+
+    podeCancelar(): boolean {
+        return (
+            this.status === StatusPagamento.AGUARDANDO_PAGAMENTO ||
+            this.status === StatusPagamento.NAO_AUTORIZADO
         );
     }
 
@@ -56,5 +64,9 @@ export class Pagamento {
 
     marcarComoVencido(): void {
         this.status = StatusPagamento.VENCIDO;
+    }
+
+    marcarComoCancelado(): void {
+        this.status = StatusPagamento.CANCELADO;
     }
 }
