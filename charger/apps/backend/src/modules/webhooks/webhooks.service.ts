@@ -43,7 +43,7 @@ export class WebhooksService {
             return;
         }
 
-        // O paymentRequestId é o que salvamos como referenciaExterna
+
         const paymentRequestId: string = payload?.data?.paymentRequestId ?? payload?.data?.id;
 
         if (!paymentRequestId) {
