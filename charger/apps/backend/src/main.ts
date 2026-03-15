@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { getDataSourceToken } from '@nestjs/typeorm';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './shared/filters/http-exception.filter';
+import { runSeedIfEmpty } from './seed';
 
 process.env.TZ = 'UTC';
 
@@ -35,8 +37,10 @@ async function bootstrap() {
     const documentFactory = () => SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, documentFactory);
 
+    const dataSource = app.get(getDataSourceToken());
+    await runSeedIfEmpty(dataSource);
+
     await app.listen(3000);
-    console.log('Charger backend rodando em http://localhost:3000');
-    console.log('Documentação Swagger disponível em http://localhost:3000/api/docs');
 }
+
 bootstrap().then(r => {});

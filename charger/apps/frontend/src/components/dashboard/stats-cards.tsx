@@ -1,28 +1,54 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatCurrency } from "@/lib/utils"
 import type { DashboardSummary } from "@/types"
 import { TrendingUp, Clock, XCircle, Receipt, Ban, CalendarX } from "lucide-react"
+import { type LucideIcon } from "lucide-react"
 
 interface StatsCardsProps {
     data: DashboardSummary | null
     isLoading: boolean
 }
 
+interface CardDef {
+    label:      string
+    value:      string
+    sub:        string
+    icon:       LucideIcon
+    iconBg:     string
+    iconColor:  string
+    valueColor: string
+}
+
+function StatCard({ label, value, sub, icon: Icon, iconBg, iconColor, valueColor }: CardDef) {
+    return (
+        <div className="rounded-xl border bg-card shadow-sm px-5 py-4">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground">{label}</span>
+                <div className={`rounded-md ${iconBg} p-2`}>
+                    <Icon className={`h-4 w-4 ${iconColor}`} />
+                </div>
+            </div>
+            <div className={`truncate text-2xl font-bold ${valueColor}`}>{value}</div>
+            <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+        </div>
+    )
+}
+
 export function StatsCards({ data, isLoading }: StatsCardsProps) {
     if (isLoading) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader className="pb-2"><Skeleton className="h-4 w-32" /></CardHeader>
-                        <CardContent>
-                            <Skeleton className="h-8 w-24" />
-                            <Skeleton className="mt-2 h-3 w-40" />
-                        </CardContent>
-                    </Card>
+                    <div key={i} className="rounded-xl border bg-card shadow-sm px-5 py-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-8 w-8 rounded-md" />
+                        </div>
+                        <Skeleton className="h-7 w-32" />
+                        <Skeleton className="mt-1.5 h-3 w-36" />
+                    </div>
                 ))}
             </div>
         )
@@ -34,7 +60,7 @@ export function StatsCards({ data, isLoading }: StatsCardsProps) {
     const pendingCount      = pagamentos.filter((p) => p.status === "AGUARDANDO_PAGAMENTO").length
     const unauthorizedCount = data?.totalNaoAutorizado ?? 0
     const cancelledCount    = data?.totalCancelado     ?? 0
-    const expiredCount      = data?.totalVencido        ?? 0
+    const expiredCount      = data?.totalVencido       ?? 0
 
     const unauthorizedTotal = pagamentos
         .filter((p) => p.status === "NAO_AUTORIZADO")
@@ -48,127 +74,54 @@ export function StatsCards({ data, isLoading }: StatsCardsProps) {
         .filter((p) => p.status === "CANCELADO")
         .reduce((acc, p) => acc + p.valor, 0)
 
+    const cards: CardDef[] = [
+        {
+            label: "Total Recebido",
+            value: formatCurrency(data?.totalRecebido ?? 0),
+            sub:   `${paidCount} pagamento(s) confirmado(s)`,
+            icon:  TrendingUp,
+            iconBg: "bg-success/10", iconColor: "text-success", valueColor: "text-success",
+        },
+        {
+            label: "Aguardando",
+            value: formatCurrency(data?.totalAguardando ?? 0),
+            sub:   `${pendingCount} cobrança(s) pendente(s)`,
+            icon:  Clock,
+            iconBg: "bg-warning/10", iconColor: "text-warning", valueColor: "text-foreground",
+        },
+        {
+            label: "Total de Cobranças",
+            value: String(data?.totalPagamentos ?? 0),
+            sub:   "cobranças cadastradas",
+            icon:  Receipt,
+            iconBg: "bg-primary/10", iconColor: "text-primary", valueColor: "text-foreground",
+        },
+        {
+            label: "Não Autorizados",
+            value: formatCurrency(unauthorizedTotal),
+            sub:   `${unauthorizedCount} pagamento(s) recusado(s)`,
+            icon:  XCircle,
+            iconBg: "bg-destructive/10", iconColor: "text-destructive", valueColor: "text-destructive",
+        },
+        {
+            label: "Vencidos",
+            value: formatCurrency(expiredTotal),
+            sub:   `${expiredCount} cobrança(s) vencida(s)`,
+            icon:  CalendarX,
+            iconBg: "bg-orange-500/10", iconColor: "text-orange-500", valueColor: "text-orange-500",
+        },
+        {
+            label: "Cancelados",
+            value: formatCurrency(cancelledTotal),
+            sub:   `${cancelledCount} cobrança(s) cancelada(s)`,
+            icon:  Ban,
+            iconBg: "bg-muted", iconColor: "text-muted-foreground", valueColor: "text-muted-foreground",
+        },
+    ]
+
     return (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {/* Total Recebido */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Total Recebido
-                    </CardTitle>
-                    <div className="rounded-md bg-success/10 p-2">
-                        <TrendingUp className="h-4 w-4 text-success" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-success">
-                        {formatCurrency(data?.totalRecebido ?? 0)}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {paidCount} pagamento(s) confirmado(s)
-                    </p>
-                </CardContent>
-            </Card>
-
-            {/* Aguardando */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Aguardando
-                    </CardTitle>
-                    <div className="rounded-md bg-warning/10 p-2">
-                        <Clock className="h-4 w-4 text-warning" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">
-                        {formatCurrency(data?.totalAguardando ?? 0)}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {pendingCount} cobrança(s) pendente(s)
-                    </p>
-                </CardContent>
-            </Card>
-
-            {/* Não Autorizados */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Não Autorizados
-                    </CardTitle>
-                    <div className="rounded-md bg-destructive/10 p-2">
-                        <XCircle className="h-4 w-4 text-destructive" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-destructive">
-                        {formatCurrency(unauthorizedTotal)}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {unauthorizedCount} pagamento(s) recusado(s)
-                    </p>
-                </CardContent>
-            </Card>
-
-            {/* Vencidos */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Vencidos
-                    </CardTitle>
-                    <div className="rounded-md bg-orange-500/10 p-2">
-                        <CalendarX className="h-4 w-4 text-orange-500" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-orange-500">
-                        {formatCurrency(expiredTotal)}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {expiredCount} cobrança(s) vencida(s)
-                    </p>
-                </CardContent>
-            </Card>
-
-            {/* Cancelados */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Cancelados
-                    </CardTitle>
-                    <div className="rounded-md bg-muted p-2">
-                        <Ban className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-muted-foreground">
-                        {formatCurrency(cancelledTotal)}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {cancelledCount} cobrança(s) cancelada(s)
-                    </p>
-                </CardContent>
-            </Card>
-
-            {/* Total de Cobranças */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        Total de Cobranças
-                    </CardTitle>
-                    <div className="rounded-md bg-primary/10 p-2">
-                        <Receipt className="h-4 w-4 text-primary" />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">
-                        {data?.totalPagamentos ?? 0}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        cobranças cadastradas
-                    </p>
-                </CardContent>
-            </Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map((card) => <StatCard key={card.label} {...card} />)}
         </div>
     )
 }
