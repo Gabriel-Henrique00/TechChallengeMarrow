@@ -2,12 +2,12 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IPagamentosRepository } from '../payment/repositories/pagamento.repository';
 import type { ITentativasTransacaoRepository } from '../payment-attempts/repositories/tentativa-transacao.repository';
 import { StatusTentativa } from '../../shared/enums/status-tentativa.enum';
+import { StatusPagamento } from '../../shared/enums/status-pagamento.enum';
 
 const PLUGGY_EVENT_MAP: Record<string, StatusTentativa> = {
     'payment_intent/completed':                   StatusTentativa.SUCESSO,
     'payment_intent/error':                       StatusTentativa.FALHA,
     'payment_intent/waiting_payer_authorization': StatusTentativa.PENDENTE,
-    'payment_request/updated':                    StatusTentativa.PENDENTE,
 };
 
 const PAYMENT_REQUEST_STATUS_MAP: Record<string, StatusTentativa> = {
@@ -15,11 +15,10 @@ const PAYMENT_REQUEST_STATUS_MAP: Record<string, StatusTentativa> = {
     'ERROR':     StatusTentativa.FALHA,
 };
 
-const TOLERANCIA_VALOR_CENTAVOS = 1;
-
 @Injectable()
 export class WebhooksService {
     private readonly logger = new Logger(WebhooksService.name);
+    private readonly processando = new Map<string, Promise<void>>();
 
     constructor(
         @Inject('IPagamentosRepository')
@@ -43,36 +42,43 @@ export class WebhooksService {
             return;
         }
 
-        let statusInterno: StatusTentativa | undefined;
-
-        if (event === 'payment_request/updated') {
-            const requestStatus = payload?.status as string;
-            statusInterno = PAYMENT_REQUEST_STATUS_MAP[requestStatus];
-
-            if (!statusInterno) {
-                this.logger.log(`payment_request/updated com status intermediário: ${requestStatus} — ignorado`);
-                return;
-            }
-        } else {
-            statusInterno = PLUGGY_EVENT_MAP[event];
-        }
-
+        const statusInterno = this.resolverStatus(event, payload);
         if (!statusInterno) {
             this.logger.log(`Evento sem mapeamento de status: ${event} — ignorado`);
             return;
         }
 
+        // Encadeia o processamento desse paymentRequestId — o próximo evento
+        // só começa após o anterior terminar, eliminando a race condition.
+        const anterior = this.processando.get(paymentRequestId) ?? Promise.resolve();
+        const atual = anterior.then(() =>
+            this.processarComLock(paymentRequestId, event, statusInterno!, payload),
+        );
+        this.processando.set(paymentRequestId, atual);
+
+        try {
+            await atual;
+        } finally {
+            if (this.processando.get(paymentRequestId) === atual) {
+                this.processando.delete(paymentRequestId);
+            }
+        }
+    }
+
+    private async processarComLock(
+        paymentRequestId: string,
+        event: string,
+        statusInterno: StatusTentativa,
+        payload: Record<string, any>,
+    ): Promise<void> {
         const tentativa = await this.tentativasRepository.findByReferenciaExterna(paymentRequestId);
         if (!tentativa) {
             this.logger.warn(`Tentativa não encontrada para paymentRequestId: ${paymentRequestId}`);
             return;
         }
 
-        // Não regride status — se já está SUCESSO, não volta para PENDENTE ou FALHA
-        if (
-            tentativa.status === StatusTentativa.SUCESSO &&
-            statusInterno !== StatusTentativa.SUCESSO
-        ) {
+        // Não regride status já finalizado
+        if (tentativa.status === StatusTentativa.SUCESSO && statusInterno !== StatusTentativa.SUCESSO) {
             this.logger.log(`Ignorando regressão de status: ${tentativa.status} → ${statusInterno}`);
             return;
         }
@@ -85,51 +91,26 @@ export class WebhooksService {
         if (!pagamento) return;
 
         if (statusInterno === StatusTentativa.SUCESSO) {
-            const valorConfirmadoRaw: number | undefined =
-                payload?.amount ??
-                payload?.data?.amount ??
-                payload?.data?.value;
-
-            const valorConfirmado = valorConfirmadoRaw != null
-                ? Number(valorConfirmadoRaw)
-                : null;
-
-            if (valorConfirmado == null || isNaN(valorConfirmado)) {
-                this.logger.error(
-                    `Webhook SUCESSO sem campo amount para pagamento ${pagamento.id}. ` +
-                    `Payload: ${JSON.stringify(payload)}. Pagamento NÃO marcado como PAGO.`,
-                );
-                pagamento.marcarComoNaoAutorizado();
-                await this.pagamentosRepository.update(pagamento);
+            if (pagamento.status === StatusPagamento.PAGO) {
+                this.logger.log(`Pagamento ${pagamento.id} já está PAGO — evento ${event} ignorado.`);
                 return;
             }
 
-            const valorEsperadoCentavos = Math.round(pagamento.valor * 100);
-            const valorRecebidoCentavos = Math.round(valorConfirmado * 100);
-            const diferenca = Math.abs(valorEsperadoCentavos - valorRecebidoCentavos);
-
-            if (diferenca > TOLERANCIA_VALOR_CENTAVOS) {
-                this.logger.error(
-                    `Divergência de valor no pagamento ${pagamento.id}: ` +
-                    `esperado R$ ${pagamento.valor.toFixed(2)}, ` +
-                    `recebido R$ ${valorConfirmado.toFixed(2)}. ` +
-                    `Pagamento NÃO marcado como PAGO.`,
-                );
-                pagamento.marcarComoNaoAutorizado();
-                await this.pagamentosRepository.update(pagamento);
-                return;
-            }
-
-            pagamento.marcarComoPago(valorConfirmado);
+            pagamento.marcarComoPago(pagamento.valor);
             await this.pagamentosRepository.update(pagamento);
-            this.logger.log(
-                ` Pagamento ${pagamento.id} → PAGO via webhook [${event}] ` +
-                `valor confirmado: R$ ${valorConfirmado.toFixed(2)}`,
-            );
+            this.logger.log(`Pagamento ${pagamento.id} → PAGO via webhook [${event}]`);
+
         } else if (statusInterno === StatusTentativa.FALHA) {
             pagamento.marcarComoNaoAutorizado();
             await this.pagamentosRepository.update(pagamento);
-            this.logger.log(` Pagamento ${pagamento.id} → NAO_AUTORIZADO via webhook [${event}]`);
+            this.logger.log(`Pagamento ${pagamento.id} → NAO_AUTORIZADO via webhook [${event}]`);
         }
+    }
+
+    private resolverStatus(event: string, payload: Record<string, any>): StatusTentativa | undefined {
+        if (event === 'payment_request/updated') {
+            return PAYMENT_REQUEST_STATUS_MAP[payload?.status as string];
+        }
+        return PLUGGY_EVENT_MAP[event];
     }
 }

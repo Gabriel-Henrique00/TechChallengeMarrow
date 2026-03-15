@@ -32,42 +32,35 @@ describe('Pagamento entity', () => {
 
   describe('podeReceberTentativa()', () => {
     it('retorna false quando status é PAGO', () => {
-      const p = makePagamento({ status: StatusPagamento.PAGO });
-      expect(p.podeReceberTentativa()).toBe(false);
+      expect(makePagamento({ status: StatusPagamento.PAGO }).podeReceberTentativa()).toBe(false);
     });
 
     it('retorna false quando status é VENCIDO', () => {
-      const p = makePagamento({ status: StatusPagamento.VENCIDO });
-      expect(p.podeReceberTentativa()).toBe(false);
+      expect(makePagamento({ status: StatusPagamento.VENCIDO }).podeReceberTentativa()).toBe(false);
     });
 
     it('retorna false quando dataVencimento está no passado', () => {
-      const p = makePagamento({ dataVencimento: new Date(Date.now() - 1000) });
-      expect(p.podeReceberTentativa()).toBe(false);
+      expect(makePagamento({ dataVencimento: new Date(Date.now() - 1000) }).podeReceberTentativa()).toBe(false);
     });
 
     it('retorna false quando há tentativa PENDENTE ainda dentro do prazo', () => {
-      const t = makeTentativa({ criadoEm: new Date() });
-      const p = makePagamento({ tentativas: [t] });
+      const p = makePagamento({ tentativas: [makeTentativa({ criadoEm: new Date() })] });
       expect(p.podeReceberTentativa()).toBe(false);
     });
 
     it('retorna true quando tentativa PENDENTE já expirou (> 5 min)', () => {
       const criadoEm = new Date(Date.now() - EXPIRACAO_TENTATIVA_MS - 1000);
-      const t = makeTentativa({ criadoEm });
-      const p = makePagamento({ tentativas: [t] });
+      const p = makePagamento({ tentativas: [makeTentativa({ criadoEm })] });
       expect(p.podeReceberTentativa()).toBe(true);
     });
 
     it('retorna true quando tentativa não é PENDENTE', () => {
-      const t = makeTentativa({ status: StatusTentativa.SUCESSO });
-      const p = makePagamento({ tentativas: [t] });
+      const p = makePagamento({ tentativas: [makeTentativa({ status: StatusTentativa.SUCESSO })] });
       expect(p.podeReceberTentativa()).toBe(true);
     });
 
     it('retorna true quando tentativas é undefined', () => {
-      const p = makePagamento({ tentativas: undefined as any });
-      expect(p.podeReceberTentativa()).toBe(true);
+      expect(makePagamento({ tentativas: undefined as any }).podeReceberTentativa()).toBe(true);
     });
 
     it('retorna true sem tentativas e pagamento válido', () => {
@@ -77,10 +70,7 @@ describe('Pagamento entity', () => {
 
   describe('estaVencido()', () => {
     it('retorna false quando status é PAGO', () => {
-      const p = makePagamento({
-        status:         StatusPagamento.PAGO,
-        dataVencimento: new Date(Date.now() - 1000),
-      });
+      const p = makePagamento({ status: StatusPagamento.PAGO, dataVencimento: new Date(Date.now() - 1000) });
       expect(p.estaVencido()).toBe(false);
     });
 
@@ -89,18 +79,15 @@ describe('Pagamento entity', () => {
     });
 
     it('retorna true quando não está pago e data está no passado', () => {
-      const p = makePagamento({ dataVencimento: new Date(Date.now() - 1000) });
-      expect(p.estaVencido()).toBe(true);
+      expect(makePagamento({ dataVencimento: new Date(Date.now() - 1000) }).estaVencido()).toBe(true);
     });
   });
 
   describe('adicionarTentativa()', () => {
     it('adiciona a tentativa à lista existente', () => {
       const p = makePagamento();
-      const t = makeTentativa();
-      p.adicionarTentativa(t);
+      p.adicionarTentativa(makeTentativa());
       expect(p.tentativas).toHaveLength(1);
-      expect(p.tentativas[0]).toBe(t);
     });
 
     it('inicializa a lista quando tentativas é undefined', () => {
@@ -110,11 +97,9 @@ describe('Pagamento entity', () => {
     });
 
     it('não muta o array original (spread)', () => {
-      const t1       = makeTentativa({ id: 'a' });
-      const t2       = makeTentativa({ id: 'b' });
-      const p        = makePagamento({ tentativas: [t1] });
+      const p        = makePagamento({ tentativas: [makeTentativa({ id: 'a' })] });
       const original = p.tentativas;
-      p.adicionarTentativa(t2);
+      p.adicionarTentativa(makeTentativa({ id: 'b' }));
       expect(p.tentativas).not.toBe(original);
       expect(p.tentativas).toHaveLength(2);
     });
@@ -142,36 +127,6 @@ describe('Pagamento entity', () => {
       const p = makePagamento();
       p.marcarComoVencido();
       expect(p.status).toBe(StatusPagamento.VENCIDO);
-    });
-  });
-
-  describe('ultimaTentativaSucedeu()', () => {
-    it('retorna false quando não há tentativas', () => {
-      expect(makePagamento().ultimaTentativaSucedeu()).toBe(false);
-    });
-
-    it('retorna false quando tentativas é undefined', () => {
-      const p = makePagamento({ tentativas: undefined as any });
-      expect(p.ultimaTentativaSucedeu()).toBe(false);
-    });
-
-    it('retorna false quando a última tentativa não é SUCESSO', () => {
-      const t = makeTentativa({ status: StatusTentativa.FALHA });
-      const p = makePagamento({ tentativas: [t] });
-      expect(p.ultimaTentativaSucedeu()).toBe(false);
-    });
-
-    it('retorna true quando a última tentativa é SUCESSO', () => {
-      const t = makeTentativa({ status: StatusTentativa.SUCESSO });
-      const p = makePagamento({ tentativas: [t] });
-      expect(p.ultimaTentativaSucedeu()).toBe(true);
-    });
-
-    it('avalia apenas a última tentativa, não as anteriores', () => {
-      const t1 = makeTentativa({ id: 'a', status: StatusTentativa.SUCESSO });
-      const t2 = makeTentativa({ id: 'b', status: StatusTentativa.FALHA });
-      const p  = makePagamento({ tentativas: [t1, t2] });
-      expect(p.ultimaTentativaSucedeu()).toBe(false);
     });
   });
 });

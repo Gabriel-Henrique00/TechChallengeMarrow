@@ -54,17 +54,6 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
     }
 
-    async findByIdForUpdate(id: string): Promise<Pagamento | null> {
-        const modelo = await this.dataSource
-            .getRepository(PagamentoModelo)
-            .findOne({
-                where:     { id },
-                relations: ['cliente', 'tentativas'],
-                lock:      { mode: 'pessimistic_write' },
-            });
-        return modelo ? PagamentoMapper.toDomain(modelo) : null;
-    }
-
     async update(pagamento: Pagamento): Promise<Pagamento> {
         await this.repositorio.save(PagamentoMapper.toModel(pagamento));
         return pagamento;

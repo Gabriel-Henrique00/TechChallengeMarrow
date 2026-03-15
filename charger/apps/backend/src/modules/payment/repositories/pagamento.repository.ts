@@ -6,6 +6,5 @@ export interface IPagamentosRepository {
     findById(id: string, usuarioId: string): Promise<Pagamento | null>;
     findByIdWithAttempts(id: string, usuarioId: string): Promise<Pagamento | null>;
     findByIdWithAttemptsInternal(id: string): Promise<Pagamento | null>;
-    findByIdForUpdate(id: string): Promise<Pagamento | null>;
     update(pagamento: Pagamento): Promise<Pagamento>;
 }

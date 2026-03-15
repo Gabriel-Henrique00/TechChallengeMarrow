@@ -57,10 +57,4 @@ export class Pagamento {
     marcarComoVencido(): void {
         this.status = StatusPagamento.VENCIDO;
     }
-
-    ultimaTentativaSucedeu(): boolean {
-        if (!this.tentativas?.length) return false;
-        const ultima = this.tentativas.at(-1);
-        return ultima?.status === StatusTentativa.SUCESSO;
-    }
 }

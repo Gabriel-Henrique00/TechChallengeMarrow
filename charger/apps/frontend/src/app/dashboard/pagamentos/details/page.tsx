@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { AppHeader } from "@/components/layout/app-header"
@@ -26,7 +26,12 @@ import {
     FileText, Calendar, CreditCard, RefreshCw,
 } from "lucide-react"
 
-const CINCO_MINUTOS_MS = 10* 60 * 1000
+// Tempo real da regra de negócio: 5 minutos
+const CINCO_MINUTOS_MS = 5 * 60 * 1000
+
+// Intervalo de polling enquanto há tentativa pendente ou pagamento recém-confirmado
+const POLLING_INTERVAL_MS = 5_000
+
 const STATUS_COM_NOVA_TENTATIVA = ["AGUARDANDO_PAGAMENTO", "NAO_AUTORIZADO"]
 
 function DetalhePagamentoContent() {
@@ -34,29 +39,82 @@ function DetalhePagamentoContent() {
     const router       = useRouter()
     const pagamentoId  = searchParams.get("id")
 
-    const [payment, setPayment]         = useState<Payment | null>(null)
-    const [attempts, setAttempts]       = useState<PaymentAttempt[]>([])
-    const [client, setClient]           = useState<Client | null>(null)
-    const [isLoading, setIsLoading]     = useState(true)
-    const [hasError, setHasError]       = useState(false)
-    const [copiedLink, setCopiedLink]   = useState(false)
+    const [payment, setPayment]       = useState<Payment | null>(null)
+    const [attempts, setAttempts]     = useState<PaymentAttempt[]>([])
+    const [client, setClient]         = useState<Client | null>(null)
+    const [isLoading, setIsLoading]   = useState(true)
+    const [hasError, setHasError]     = useState(false)
+    const [copiedLink, setCopiedLink] = useState(false)
+
+    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+    const stopPolling = useCallback(() => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+        }
+    }, [])
+
+    // Busca pagamento + tentativas e retorna os dados atualizados
+    const fetchData = useCallback(async (id: string) => {
+        const [p, att] = await Promise.all([
+            paymentService.findById(id),
+            paymentAttemptService.findByPaymentId(id),
+        ])
+        return { payment: p, attempts: att ?? [] }
+    }, [])
+
+    // Decide se deve continuar fazendo polling:
+    // - enquanto houver tentativa PENDENTE recente (aguardando webhook)
+    // - para garantir que o status PAGO reflita imediatamente após confirmação
+    const devePollar = useCallback(
+        (p: Payment | null, att: PaymentAttempt[]) => {
+            if (!p) return false
+            if (p.status === "PAGO") return false
+
+            return att.some((a) => {
+                if (a.status !== "PENDENTE") return false
+                const idadeMs = Date.now() - new Date(a.criadoEm).getTime()
+                return idadeMs < CINCO_MINUTOS_MS
+            })
+        },
+        [],
+    )
 
     useEffect(() => {
         if (!pagamentoId) { router.replace("/dashboard/pagamentos"); return }
 
-        paymentService.findById(pagamentoId)
-            .then(async (p) => {
+        // Carga inicial — também busca o cliente (feito apenas uma vez)
+        fetchData(pagamentoId)
+            .then(async ({ payment: p, attempts: att }) => {
                 setPayment(p)
-                const [att, cli] = await Promise.all([
-                    paymentAttemptService.findByPaymentId(pagamentoId),
-                    clientService.findById(p.clienteId),
-                ])
-                setAttempts(att ?? [])
+                setAttempts(att)
+                const cli = await clientService.findById(p.clienteId)
                 setClient(cli)
+
+                // Inicia polling se houver tentativa pendente
+                if (devePollar(p, att)) {
+                    pollingRef.current = setInterval(async () => {
+                        try {
+                            const { payment: pAtual, attempts: attAtual } = await fetchData(pagamentoId)
+                            setPayment(pAtual)
+                            setAttempts(attAtual)
+
+                            // Para o polling quando não há mais pendentes ou pagamento confirmado
+                            if (!devePollar(pAtual, attAtual)) {
+                                stopPolling()
+                            }
+                        } catch {
+                            stopPolling()
+                        }
+                    }, POLLING_INTERVAL_MS)
+                }
             })
             .catch(() => setHasError(true))
             .finally(() => setIsLoading(false))
-    }, [pagamentoId, router])
+
+        return () => stopPolling()
+    }, [pagamentoId, router, fetchData, devePollar, stopPolling])
 
     if (hasError) {
         return (
@@ -71,7 +129,14 @@ function DetalhePagamentoContent() {
         )
     }
 
-    const safeAttempts = attempts ?? []
+    // A Pluggy dispara múltiplos eventos de sucesso simultaneamente para o mesmo
+    // pagamento. Exibimos apenas a tentativa de SUCESSO mais antiga — as demais
+    // são duplicatas do mesmo evento e não agregam informação ao histórico.
+    const safeAttempts = (attempts ?? []).filter((attempt, index, all) => {
+        if (attempt.status !== "SUCESSO") return true
+        const firstSuccess = all.find((a) => a.status === "SUCESSO")
+        return attempt.id === firstSuccess?.id
+    })
     const isPaid       = payment?.status === "PAGO"
 
     const podeNovaTentativa =
@@ -192,6 +257,12 @@ function DetalhePagamentoContent() {
                                         <CardTitle>Histórico de Tentativas</CardTitle>
                                         <CardDescription>
                                             Registro de todas as tentativas de pagamento
+                                            {temTentativaPendente && !isPaid && (
+                                                <span className="ml-2 inline-flex items-center gap-1 text-warning">
+                                                    <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
+                                                    Aguardando confirmação…
+                                                </span>
+                                            )}
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>
@@ -263,8 +334,8 @@ function DetalhePagamentoContent() {
                                                 <div className="flex items-center gap-2 text-sm">
                                                     <Phone className="h-4 w-4 text-muted-foreground" />
                                                     <span className="text-muted-foreground">
-                            {formatPhone(client.telefone)}
-                          </span>
+                                                        {formatPhone(client.telefone)}
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>
@@ -301,7 +372,7 @@ function DetalhePagamentoContent() {
                                             <>
                                                 {temTentativaPendente ? (
                                                     <div className="rounded-lg bg-warning/10 p-3 text-center text-sm text-warning">
-                                                        Tentativa em andamento. Aguarde 10 minutos para tentar novamente.
+                                                        Tentativa em andamento. Aguarde 5 minutos para tentar novamente.
                                                     </div>
                                                 ) : (
                                                     <Button className="w-full" asChild>

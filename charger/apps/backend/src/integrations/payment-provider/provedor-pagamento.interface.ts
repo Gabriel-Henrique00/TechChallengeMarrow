@@ -8,17 +8,11 @@ export interface IniciarPagamentoInput {
 
 export interface IniciarPagamentoOutput {
     status:            StatusTentativa;
-    referenciaExterna: string | null; // paymentRequestId do Pluggy
+    referenciaExterna: string | null;
     motivoFalha:       string | null;
-    paymentUrl:        string | null; // https://pay.pluggy.ai/{id}
-}
-
-export interface BancoDisponivel {
-    id:   string;
-    nome: string;
+    paymentUrl:        string | null;
 }
 
 export interface IPaymentProvider {
     initiatePayment(input: IniciarPagamentoInput): Promise<IniciarPagamentoOutput>;
-    getAvailableBanks(): Promise<BancoDisponivel[]>;
 }

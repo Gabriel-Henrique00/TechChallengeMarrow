@@ -28,21 +28,25 @@ export class PaymentExpiryScheduler {
             this.logger.log(`Expirando ${pendentes.length} tentativa(s) com mais de 5 minutos...`);
 
             for (const tentativa of pendentes) {
+                const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(
+                    tentativa.pagamentoId,
+                );
+                if (pagamento?.status === StatusPagamento.PAGO) {
+                    tentativa.status      = StatusTentativa.SUCESSO;
+                    tentativa.motivoFalha = null;
+                    await this.tentativasRepository.update(tentativa);
+                    this.logger.log(
+                        `Tentativa ${tentativa.id} reconciliada como SUCESSO — pagamento ${tentativa.pagamentoId} está PAGO.`,
+                    );
+                    continue;
+                }
+
+                // Pagamento não confirmado: expira a tentativa normalmente
                 tentativa.status      = StatusTentativa.NAO_AUTORIZADO;
                 tentativa.motivoFalha = 'Tempo limite de 5 minutos excedido sem confirmação do banco.';
                 await this.tentativasRepository.update(tentativa);
 
-                const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(
-                    tentativa.pagamentoId,
-                );
                 if (!pagamento) continue;
-
-                if (pagamento.status === StatusPagamento.PAGO) {
-                    this.logger.log(
-                        `Pagamento ${pagamento.id} já está PAGO — tentativa expirada ignorada.`,
-                    );
-                    continue;
-                }
 
                 if (pagamento.status === StatusPagamento.AGUARDANDO_PAGAMENTO) {
                     const temPendenteAtivo = pagamento.tentativas.some(

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
-    BancoDisponivel,
     IniciarPagamentoInput,
     IniciarPagamentoOutput,
     IPaymentProvider,
@@ -44,7 +43,6 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
             }
 
             const apiKey = await this.getApiKey();
-
 
             const body = {
                 amount:      input.valor,
@@ -90,10 +88,6 @@ export class PluggyPaymentAdapter implements IPaymentProvider {
                 paymentUrl:        null,
             };
         }
-    }
-
-    async getAvailableBanks(): Promise<BancoDisponivel[]> {
-        return [];
     }
 
     private async getApiKey(): Promise<string> {
