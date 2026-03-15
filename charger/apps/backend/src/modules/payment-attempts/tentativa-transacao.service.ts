@@ -21,25 +21,44 @@ export class TentativasTransacaoService {
         private readonly paymentProvider: IPaymentProvider,
     ) {}
 
+    // Chamado pelo cliente (sem autenticação) — busca pelo ID público
+    async createPublico(pagamentoId: string): Promise<TentativaRespostaDto> {
+        const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(pagamentoId);
+        if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
+        return this.processarTentativa(pagamento);
+    }
+
+    // Chamado pelo admin autenticado
     async create(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto> {
         const pagamento = await this.pagamentosRepository.findByIdWithAttempts(pagamentoId, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
+        return this.processarTentativa(pagamento);
+    }
 
+    async findByPaymentId(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto[]> {
+        const pagamento = await this.pagamentosRepository.findById(pagamentoId, usuarioId);
+        if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
+
+        const tentativas = await this.tentativasRepository.findByPaymentId(pagamentoId);
+        return tentativas.map((t) => TentativaTransacaoMapper.toResponseDto(t));
+    }
+
+    private async processarTentativa(pagamento: any): Promise<TentativaRespostaDto> {
         if (pagamento.status === StatusPagamento.PAGO) {
-            throw new PaymentAlreadyPaidException(pagamentoId);
+            throw new PaymentAlreadyPaidException(pagamento.id);
         }
 
         if (pagamento.estaVencido()) {
             pagamento.marcarComoVencido();
             await this.pagamentosRepository.update(pagamento);
             throw new BadRequestException(
-                `O pagamento ${pagamentoId} está vencido e não aceita novas tentativas.`,
+                `O pagamento está vencido e não aceita novas tentativas.`,
             );
         }
 
-        await this.expirarTentativasPendentes(pagamento.tentativas ?? [], pagamentoId);
+        await this.expirarTentativasPendentes(pagamento.tentativas ?? [], pagamento.id);
 
-        const pagamentoAtualizado = await this.pagamentosRepository.findByIdWithAttempts(pagamentoId, usuarioId);
+        const pagamentoAtualizado = await this.pagamentosRepository.findByIdWithAttemptsInternal(pagamento.id);
 
         if (!pagamentoAtualizado!.podeReceberTentativa()) {
             throw new BadRequestException(
@@ -49,12 +68,12 @@ export class TentativasTransacaoService {
         }
 
         const resultado = await this.paymentProvider.initiatePayment({
-            pagamentoId,
-            valor:     pagamento.valor,
-            descricao: pagamento.descricao ?? pagamento.nome,
+            pagamentoId: pagamento.id,
+            valor:       pagamento.valor,
+            descricao:   pagamento.descricao ?? pagamento.nome,
         });
 
-        const dadosTentativa             = TentativaTransacaoMapper.fromCreateDto(pagamentoId, pagamento.valor);
+        const dadosTentativa             = TentativaTransacaoMapper.fromCreateDto(pagamento.id, pagamento.valor);
         dadosTentativa.status            = resultado.status;
         dadosTentativa.referenciaExterna = resultado.referenciaExterna ?? null;
         dadosTentativa.motivoFalha       = resultado.motivoFalha ?? null;
@@ -70,33 +89,23 @@ export class TentativasTransacaoService {
         return TentativaTransacaoMapper.toResponseDto(tentativa, resultado.paymentUrl);
     }
 
-    async findByPaymentId(pagamentoId: string, usuarioId: string): Promise<TentativaRespostaDto[]> {
-        const pagamento = await this.pagamentosRepository.findById(pagamentoId, usuarioId);
-        if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
-
-        const tentativas = await this.tentativasRepository.findByPaymentId(pagamentoId);
-        return tentativas.map((t) => TentativaTransacaoMapper.toResponseDto(t));
-    }
-
     private async expirarTentativasPendentes(
         tentativas: Array<{ id: string; status: string; criadoEm: Date }>,
         pagamentoId: string,
     ): Promise<void> {
         const agora = Date.now();
-
         for (const t of tentativas) {
             if (t.status !== StatusTentativa.PENDENTE) continue;
-
             const idadeMs = agora - new Date(t.criadoEm).getTime();
             if (idadeMs < EXPIRACAO_TENTATIVA_MS) continue;
 
             const todas = await this.tentativasRepository.findByPaymentId(pagamentoId);
-            const tentativaCompleta = todas.find((x) => x.id === t.id);
-            if (!tentativaCompleta) continue;
+            const completa = todas.find((x) => x.id === t.id);
+            if (!completa) continue;
 
-            tentativaCompleta.status      = StatusTentativa.NAO_AUTORIZADO;
-            tentativaCompleta.motivoFalha = 'Tempo limite de 10 minutos excedido sem confirmação do banco.';
-            await this.tentativasRepository.update(tentativaCompleta);
+            completa.status      = StatusTentativa.NAO_AUTORIZADO;
+            completa.motivoFalha = 'Tempo limite de 5 minutos excedido sem confirmação.';
+            await this.tentativasRepository.update(completa);
         }
     }
 }

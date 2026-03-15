@@ -7,6 +7,17 @@ import { PagamentoRespostaDto } from './dto/pagamento-response.dto';
 import { StatusPagamento } from '../../shared/enums/status-pagamento.enum';
 import { ResourceNotFoundException } from '../../shared/exceptions/resource-not-found.exception';
 
+// DTO público — só o necessário para o cliente ver na tela de checkout
+export interface PagamentoPublicoDto {
+    id:             string;
+    nome:           string;
+    descricao:      string | null;
+    valor:          number;
+    status:         string;
+    dataVencimento: string;
+    nomeCliente:    string;
+}
+
 @Injectable()
 export class PagamentosService {
     constructor(
@@ -39,5 +50,21 @@ export class PagamentosService {
         const pagamento = await this.pagamentosRepository.findById(id, usuarioId);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', id);
         return PagamentoMapper.toResponseDto(pagamento, pagamento.nomeCliente ?? '');
+    }
+
+    // Endpoint público — expõe apenas dados necessários para o checkout, sem dados sensíveis
+    async findByIdPublico(id: string): Promise<PagamentoPublicoDto> {
+        const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(id);
+        if (!pagamento) throw new ResourceNotFoundException('Pagamento', id);
+
+        return {
+            id:             pagamento.id,
+            nome:           pagamento.nome,
+            descricao:      pagamento.descricao,
+            valor:          pagamento.valor,
+            status:         pagamento.status,
+            dataVencimento: pagamento.dataVencimento.toISOString(),
+            nomeCliente:    pagamento.nomeCliente ?? '',
+        };
     }
 }

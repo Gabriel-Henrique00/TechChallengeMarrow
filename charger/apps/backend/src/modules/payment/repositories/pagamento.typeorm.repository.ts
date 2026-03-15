@@ -19,16 +19,18 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
         return PagamentoMapper.toDomain(salvo);
     }
 
-    async findAll(): Promise<Pagamento[]> {
+    async findAll(usuarioId: string): Promise<Pagamento[]> {
         const modelos = await this.repositorio.find({
+            where:     { usuarioId },
             relations: ['cliente'],
+            order:     { criadoEm: 'DESC' },
         });
         return modelos.map(PagamentoMapper.toDomain);
     }
 
-    async findById(id: string): Promise<Pagamento | null> {
+    async findById(id: string, usuarioId: string): Promise<Pagamento | null> {
         const modelo = await this.repositorio.findOne({
-            where: { id },
+            where:     { id, usuarioId },
             relations: ['cliente'],
         });
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
@@ -42,16 +44,16 @@ export class PagamentosTypeOrmRepository implements IPagamentosRepository {
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
     }
 
-    async update(pagamento: Pagamento): Promise<Pagamento> {
-        await this.repositorio.save(PagamentoMapper.toModel(pagamento));
-        return pagamento;
-    }
-
     async findByIdWithAttemptsInternal(id: string): Promise<Pagamento | null> {
         const modelo = await this.repositorio.findOne({
             where:     { id },
             relations: ['cliente', 'tentativas'],
         });
         return modelo ? PagamentoMapper.toDomain(modelo) : null;
+    }
+
+    async update(pagamento: Pagamento): Promise<Pagamento> {
+        await this.repositorio.save(PagamentoMapper.toModel(pagamento));
+        return pagamento;
     }
 }

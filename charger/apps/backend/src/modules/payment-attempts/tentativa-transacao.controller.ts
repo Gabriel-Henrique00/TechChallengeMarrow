@@ -1,33 +1,29 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { TentativasTransacaoService } from './tentativa-transacao.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 
 @ApiTags('payments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('payments')
 export class TentativasTransacaoController {
     constructor(private readonly tentativasService: TentativasTransacaoService) {}
 
     @Post(':id/attempt')
-    @ApiOperation({ summary: 'Registrar uma nova tentativa de pagamento via Pluggy' })
-    @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })
+    @ApiOperation({ summary: 'Iniciar tentativa de pagamento via Pluggy (público)' })
+    @ApiParam({ name: 'id', description: 'UUID do pagamento' })
     @ApiResponse({ status: 201, description: 'Tentativa registrada com sucesso.' })
     @ApiResponse({ status: 400, description: 'Pagamento vencido, já pago ou tentativa em andamento.' })
-    @ApiResponse({ status: 401, description: 'Não autorizado.' })
     @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
-    criar(
-        @Param('id') pagamentoId: string,
-        @UsuarioAtual() usuario: { id: string },
-    ) {
-        return this.tentativasService.create(pagamentoId, usuario.id);
+    criar(@Param('id') pagamentoId: string) {
+        return this.tentativasService.createPublico(pagamentoId);
     }
 
     @Get(':id/attempts')
-    @ApiOperation({ summary: 'Listar todas as tentativas de um pagamento' })
-    @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Listar tentativas de um pagamento (autenticado)' })
+    @ApiParam({ name: 'id', description: 'UUID do pagamento' })
     @ApiResponse({ status: 200, description: 'Histórico retornado com sucesso.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     buscarPorPagamentoId(

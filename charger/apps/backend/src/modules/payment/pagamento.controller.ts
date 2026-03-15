@@ -6,15 +6,26 @@ import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 
 @ApiTags('payments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('payments')
 export class PagamentoController {
     constructor(private readonly pagamentosService: PagamentosService) {}
 
+
+    @Get('public/:id')
+    @ApiOperation({ summary: 'Buscar dados públicos de um pagamento (sem autenticação)' })
+    @ApiParam({ name: 'id', description: 'UUID do pagamento' })
+    @ApiResponse({ status: 200, description: 'Dados retornados com sucesso.' })
+    @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
+    buscarPublico(@Param('id') id: string) {
+        return this.pagamentosService.findByIdPublico(id);
+    }
+
     @Post()
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Criar uma nova cobrança para um cliente' })
     @ApiResponse({ status: 201, description: 'Pagamento criado com sucesso.' })
+    @ApiResponse({ status: 400, description: 'Dados inválidos.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     @ApiResponse({ status: 404, description: 'Cliente não encontrado.' })
     criar(
@@ -25,6 +36,8 @@ export class PagamentoController {
     }
 
     @Get()
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Listar todos os pagamentos do usuário autenticado' })
     @ApiResponse({ status: 200, description: 'Lista retornada com sucesso.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
@@ -33,8 +46,10 @@ export class PagamentoController {
     }
 
     @Get(':id')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Buscar detalhes de um pagamento pelo ID' })
-    @ApiParam({ name: 'id', description: 'UUID do pagamento', type: String })
+    @ApiParam({ name: 'id', description: 'UUID do pagamento' })
     @ApiResponse({ status: 200, description: 'Dados retornados com sucesso.' })
     @ApiResponse({ status: 401, description: 'Não autorizado.' })
     @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
