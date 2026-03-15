@@ -45,7 +45,16 @@ export class TentativasTransacaoService {
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', pagamentoId);
 
         const tentativas = await this.tentativasRepository.findByPaymentId(pagamentoId);
-        return tentativas.map((t) => TentativaTransacaoMapper.toResponseDto(t));
+
+        const jaViuSucesso = new Set<string>();
+        const deduplicadas = tentativas.filter((t) => {
+            if (t.status !== StatusTentativa.SUCESSO) return true;
+            if (jaViuSucesso.has(t.pagamentoId)) return false;
+            jaViuSucesso.add(t.pagamentoId);
+            return true;
+        });
+
+        return deduplicadas.map((t) => TentativaTransacaoMapper.toResponseDto(t));
     }
 
     private async processarTentativa(pagamentoId: string): Promise<TentativaRespostaDto> {

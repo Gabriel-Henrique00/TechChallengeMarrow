@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { PagamentosService } from './pagamento.service';
 import { CriarPagamentoDto } from './dto/create-pagamento.dto';
@@ -9,7 +9,6 @@ import { UsuarioAtual } from '../../shared/decorators/usuario-atual.decorator';
 @Controller('payments')
 export class PagamentoController {
     constructor(private readonly pagamentosService: PagamentosService) {}
-
 
     @Get('public/:id')
     @ApiOperation({ summary: 'Buscar dados públicos de um pagamento (sem autenticação)' })
@@ -58,5 +57,21 @@ export class PagamentoController {
         @UsuarioAtual() usuario: { id: string },
     ) {
         return this.pagamentosService.findById(id, usuario.id);
+    }
+
+    @Patch(':id/cancel')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Cancelar um pagamento' })
+    @ApiParam({ name: 'id', description: 'UUID do pagamento' })
+    @ApiResponse({ status: 200, description: 'Pagamento cancelado com sucesso.' })
+    @ApiResponse({ status: 400, description: 'Pagamento não pode ser cancelado (já pago, vencido ou já cancelado).' })
+    @ApiResponse({ status: 401, description: 'Não autorizado.' })
+    @ApiResponse({ status: 404, description: 'Pagamento não encontrado.' })
+    cancelar(
+        @Param('id') id: string,
+        @UsuarioAtual() usuario: { id: string },
+    ) {
+        return this.pagamentosService.cancel(id, usuario.id);
     }
 }

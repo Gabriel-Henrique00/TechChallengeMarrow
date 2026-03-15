@@ -129,14 +129,8 @@ function DetalhePagamentoContent() {
         )
     }
 
-    // A Pluggy dispara múltiplos eventos de sucesso simultaneamente para o mesmo
-    // pagamento. Exibimos apenas a tentativa de SUCESSO mais antiga — as demais
-    // são duplicatas do mesmo evento e não agregam informação ao histórico.
-    const safeAttempts = (attempts ?? []).filter((attempt, index, all) => {
-        if (attempt.status !== "SUCESSO") return true
-        const firstSuccess = all.find((a) => a.status === "SUCESSO")
-        return attempt.id === firstSuccess?.id
-    })
+    const safeAttempts = attempts ?? []
+
     const isPaid       = payment?.status === "PAGO"
 
     const podeNovaTentativa =

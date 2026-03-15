@@ -6,8 +6,8 @@ import { CriarPagamentoDto } from './dto/create-pagamento.dto';
 import { PagamentoRespostaDto } from './dto/pagamento-response.dto';
 import { StatusPagamento } from '../../shared/enums/status-pagamento.enum';
 import { ResourceNotFoundException } from '../../shared/exceptions/resource-not-found.exception';
+import { PaymentCannotBeCancelledException } from '../../shared/exceptions/payment-cannot-be-cancelled.exception';
 
-// DTO público — só o necessário para o cliente ver na tela de checkout
 export interface PagamentoPublicoDto {
     id:             string;
     nome:           string;
@@ -52,7 +52,6 @@ export class PagamentosService {
         return PagamentoMapper.toResponseDto(pagamento, pagamento.nomeCliente ?? '');
     }
 
-    // Endpoint público — expõe apenas dados necessários para o checkout, sem dados sensíveis
     async findByIdPublico(id: string): Promise<PagamentoPublicoDto> {
         const pagamento = await this.pagamentosRepository.findByIdWithAttemptsInternal(id);
         if (!pagamento) throw new ResourceNotFoundException('Pagamento', id);
@@ -66,5 +65,24 @@ export class PagamentosService {
             dataVencimento: pagamento.dataVencimento.toISOString(),
             nomeCliente:    pagamento.nomeCliente ?? '',
         };
+    }
+
+    async cancel(id: string, usuarioId: string): Promise<PagamentoRespostaDto> {
+        const pagamento = await this.pagamentosRepository.findById(id, usuarioId);
+        if (!pagamento) throw new ResourceNotFoundException('Pagamento', id);
+
+        if (!pagamento.podeCancelar()) {
+            const motivos: Record<string, string> = {
+                PAGO:      'já foi pago.',
+                VENCIDO:   'está vencido.',
+                CANCELADO: 'já foi cancelado.',
+            };
+            const motivo = motivos[pagamento.status] ?? `status atual é ${pagamento.status}.`;
+            throw new PaymentCannotBeCancelledException(id, motivo);
+        }
+
+        pagamento.marcarComoCancelado();
+        const atualizado = await this.pagamentosRepository.update(pagamento);
+        return PagamentoMapper.toResponseDto(atualizado, atualizado.nomeCliente ?? '');
     }
 }
