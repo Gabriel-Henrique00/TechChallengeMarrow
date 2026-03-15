@@ -15,13 +15,30 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+@ValidatorConstraint({ name: 'hasTimezone', async: false })
+export class HasTimezoneConstraint implements ValidatorConstraintInterface {
+    private readonly TIMEZONE_PATTERN = /(Z|[+-]\d{2}:\d{2})$/;
+
+    validate(value: string, _args: ValidationArguments): boolean {
+        return this.TIMEZONE_PATTERN.test(value);
+    }
+
+    defaultMessage(_args: ValidationArguments): string {
+        return (
+            'A data de vencimento deve incluir o offset de fuso horário ' +
+            '(ex.: "2026-04-15T00:00:00-03:00" ou "2026-04-15T03:00:00Z").'
+        );
+    }
+}
+
 @ValidatorConstraint({ name: 'isFutureDate', async: false })
 export class IsFutureDateConstraint implements ValidatorConstraintInterface {
-    validate(value: string, _args: ValidationArguments) {
+    validate(value: string, _args: ValidationArguments): boolean {
         const date = new Date(value);
-        return date > new Date();
+        return !isNaN(date.getTime()) && date > new Date();
     }
-    defaultMessage(_args: ValidationArguments) {
+
+    defaultMessage(_args: ValidationArguments): string {
         return 'A data de vencimento deve ser uma data futura.';
     }
 }
@@ -49,8 +66,14 @@ export class CriarPagamentoDto {
     @Max(999999.99, { message: 'O valor máximo é R$ 999.999,99.' })
     valor: number;
 
-    @ApiProperty({ example: '2026-04-15T00:00:00.000Z' })
+    @ApiProperty({
+        example: '2026-04-15T00:00:00-03:00',
+        description:
+            'Data de vencimento em ISO 8601 com offset de timezone obrigatório. ' +
+            'Ex.: "2026-04-15T00:00:00-03:00" (Brasília) ou "2026-04-15T03:00:00Z" (UTC equivalente).',
+    })
     @IsDateString()
+    @Validate(HasTimezoneConstraint)
     @Validate(IsFutureDateConstraint)
     dataVencimento: string;
 }
