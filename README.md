@@ -10,6 +10,136 @@ O Charger permite que empresas criem e gerenciem cobranças para seus clientes, 
 
 ---
 
+
+
+# Como Rodar
+
+## Pré-requisitos
+
+- [Docker](https://docs.docker.com/get-docker/) e Docker Compose instalados
+- Conta na [Pluggy](https://dashboard.pluggy.ai) com as credenciais em mãos
+- Conta no [ngrok](https://ngrok.com) (gratuita)
+- [Node]((https://nodejs.org/pt-br)) Instalado na Maquina
+
+---
+
+## 1. Configurar o ngrok
+
+### 1.1 Rodar o ngrok pela primeira vez
+
+```bash
+npx ngrok http 3000
+```
+
+Na primeira vez, ele vai gerar um link de uma página no browser pedindo para você **criar uma conta ou fazer login** no ngrok.com. Crie a conta gratuita e faça o login.
+
+### 1.2 Pegar o token e autenticar
+
+Após criar a conta, o ngrok vai exibir seu **Authtoken** no dashboard. Rode:
+
+```bash
+npx ngrok authtoken SEU_TOKEN_AQUI
+```
+
+> Isso só precisa ser feito uma vez. O token fica salvo localmente.
+
+### 1.3 Rodar o ngrok de novo
+
+```bash
+npx ngrok http 3000
+```
+
+Agora vai funcionar e vai gerar uma URL pública tipo:
+
+```
+https://xxxx-xx-xx-xxx-xx.ngrok-free.app
+```
+
+**Copie essa URL** — você vai precisar dela no próximo passo.
+
+---
+
+## 2. Configurar o projeto
+
+```bash
+cd charger
+cp .env.example .env
+```
+
+Abra o `.env` e preencha com suas credenciais. O mais importante é colocar a URL do ngrok:
+
+```env
+# Banco de dados
+DB_USER=admin
+DB_PASS=admin
+DB_NAME=charger_db
+
+# JWT
+JWT_SECRET=coloque-um-segredo-forte-aqui
+
+# Pluggy — obtenha em dashboard.pluggy.ai
+PLUGGY_CLIENT_ID=seu-client-id
+PLUGGY_CLIENT_SECRET=seu-client-secret
+PLUGGY_RECIPIENT_ID=uuid-da-conta-recebedora
+PLUGGY_WEBHOOK_SECRET=segredo-do-webhook
+
+# URL gerada pelo ngrok (substitua pela sua)
+APP_BASE_URL=https://xxxx-xx-xx-xxx-xx.ngrok-free.app
+FRONTEND_URL=https://xxxx-xx-xx-xxx-xx.ngrok-free.app
+NEXT_PUBLIC_API_URL=https://xxxx-xx-xx-xxx-xx.ngrok-free.app
+```
+
+---
+
+## 3. Subir o Docker
+
+```bash
+cd charger
+docker compose up --build
+```
+
+Aguarde o build. Na primeira vez o banco é populado automaticamente com dados de demonstração.
+
+**Acesse:**
+
+| Serviço | URL |
+|---------|-----|
+| Frontend | http://localhost:3001 |
+| Backend API | http://localhost:3000 |
+| Swagger | http://localhost:3000/api/docs |
+
+**Login padrão:**
+- **Email:** `charger@charger.com`
+- **Senha:** `charger123`
+
+---
+
+## 4. Parar o projeto
+
+```bash
+# Só parar
+docker compose down
+
+# Parar e apagar os dados do banco
+docker compose down -v
+```
+
+---
+
+## Atenção: URL do ngrok muda a cada reinício
+
+Toda vez que você parar e reiniciar o ngrok, uma nova URL é gerada. Nesse caso:
+
+1. Atualize as três variáveis de URL no `.env`
+2. Reinicie os containers:
+
+```bash
+docker compose down
+docker compose up
+```
+
+---
+
 ## Stack Tecnológica
 
 | Camada | Tecnologia |
